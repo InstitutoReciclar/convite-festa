@@ -129,12 +129,26 @@
 import { useEffect, useRef, useState } from "react"
 import { Html5Qrcode } from "html5-qrcode"
 import { db } from "../../firebase"
-import { ref, get } from "firebase/database"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ref, get, update } from "firebase/database"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Camera, CheckCircle, XCircle, User, Mail, CreditCard, Calendar, Users } from "lucide-react"
+import {
+  Camera,
+  CheckCircle,
+  XCircle,
+  User,
+  Mail,
+  CreditCard,
+  Calendar,
+  Users,
+} from "lucide-react"
 
 export default function LeitorQRCode() {
   const qrRegionId = "reader"
@@ -144,6 +158,8 @@ export default function LeitorQRCode() {
   const [erro, setErro] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isScanning, setIsScanning] = useState(false)
+  const [modalAberto, setModalAberto] = useState(false)
+  const [cameraId, setCameraId] = useState(null)
 
   useEffect(() => {
     html5QrCodeRef.current = new Html5Qrcode(qrRegionId)
@@ -151,11 +167,19 @@ export default function LeitorQRCode() {
     Html5Qrcode.getCameras()
       .then((devices) => {
         if (devices && devices.length) {
-          const cameraId = devices[0].id
+          // Tentar encontrar câmera traseira pelo label ou pegar a última da lista
+          const backCamera =
+            devices.find((d) =>
+              d.label.toLowerCase().includes("back") ||
+              d.label.toLowerCase().includes("environment")
+            ) || devices[devices.length - 1]
+
+          setCameraId(backCamera.id)
+
           setIsScanning(true)
           html5QrCodeRef.current
             .start(
-              cameraId,
+              backCamera.id,
               { fps: 10, qrbox: 250 },
               async (decodedText) => {
                 setResultado(decodedText)
@@ -163,25 +187,29 @@ export default function LeitorQRCode() {
                 try {
                   await html5QrCodeRef.current.stop()
                 } catch {
-                  // Ignora o erro se tentar parar scanner que não está rodando
+                  // Ignora erro se scanner já parou
                 }
+
                 try {
                   const conviteRef = ref(db, `convites/${decodedText}`)
                   const snapshot = await get(conviteRef)
                   if (snapshot.exists()) {
                     setConviteDados(snapshot.val())
                     setErro(null)
+                    setModalAberto(true) // abre modal ao encontrar convite
                   } else {
                     setConviteDados(null)
                     setErro("Convite não encontrado.")
+                    setModalAberto(false)
                   }
                 } catch (error) {
                   setErro("Erro ao buscar convite: " + error.message)
                   setConviteDados(null)
+                  setModalAberto(false)
                 }
               },
               (errorMessage) => {
-                // Você pode ignorar erros pequenos da leitura do QR aqui
+                // Pode ignorar erros pequenos de leitura do QR
               },
             )
             .catch((err) => {
@@ -205,15 +233,61 @@ export default function LeitorQRCode() {
       if (html5QrCodeRef.current) {
         html5QrCodeRef.current
           .stop()
-          .catch(() => {
-            // Ignora erros caso scanner já tenha parado
-          })
+          .catch(() => {})
           .finally(() => {
             html5QrCodeRef.current.clear()
           })
       }
     }
   }, [])
+
+  async function marcarPresenca() {
+    if (!resultado) return
+    try {
+      const conviteRef = ref(db, `convites/${resultado}`)
+      await update(conviteRef, { presente: true })
+      alert("Convidado marcado como presente!")
+      setModalAberto(false)
+      setConviteDados(null)
+      setResultado(null)
+
+      // Reinicia a leitura para novo scan
+      if (html5QrCodeRef.current && cameraId) {
+        setIsScanning(true)
+        html5QrCodeRef.current.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          async (decodedText) => {
+            setResultado(decodedText)
+            setIsScanning(false)
+            try {
+              await html5QrCodeRef.current.stop()
+            } catch {}
+            try {
+              const conviteRef = ref(db, `convites/${decodedText}`)
+              const snapshot = await get(conviteRef)
+              if (snapshot.exists()) {
+                setConviteDados(snapshot.val())
+                setErro(null)
+                setModalAberto(true)
+              } else {
+                setConviteDados(null)
+                setErro("Convite não encontrado.")
+                setModalAberto(false)
+              }
+            } catch (error) {
+              setErro("Erro ao buscar convite: " + error.message)
+              setConviteDados(null)
+              setModalAberto(false)
+            }
+          },
+          (errorMessage) => {},
+        )
+      }
+    } catch (error) {
+      alert("Erro ao marcar presença: " + error.message)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -278,89 +352,109 @@ export default function LeitorQRCode() {
           </Alert>
         )}
 
-        {/* Dados do Convite */}
-        {conviteDados && (
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-gray-800">
-                <Users className="h-5 w-5 text-blue-600" />
-                Dados do Convite
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Comprador */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <h3 className="font-semibold text-gray-800">Comprador</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500">Nome completo</p>
-                    <p className="font-medium">
-                      {conviteDados.comprador.nome} {conviteDados.comprador.sobrenome}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      E-mail
-                    </p>
-                    <p className="font-medium">{conviteDados.comprador.email}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <CreditCard className="h-3 w-3" />
-                      CPF
-                    </p>
-                    <p className="font-medium">{conviteDados.comprador.cpf}</p>
-                  </div>
-                </div>
-              </div>
+        {/* Modal dos Dados do Convite */}
+        {modalAberto && conviteDados && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg max-w-xl w-full p-6 relative shadow-lg">
+              <button
+                onClick={() => setModalAberto(false)}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 font-bold text-lg"
+                aria-label="Fechar modal"
+              >
+                ×
+              </button>
 
-              {/* Convidado (se existir) */}
-              {conviteDados.convidado?.nome && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <h3 className="font-semibold text-gray-800">Convidado</h3>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl text-gray-800">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  Dados do Convite
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Comprador */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-800">Comprador</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-500">Nome completo</p>
+                      <p className="font-medium">
+                        {conviteDados.comprador.nome} {conviteDados.comprador.sobrenome}
+                      </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-500">Nome completo</p>
-                        <p className="font-medium">
-                          {conviteDados.convidado.nome} {conviteDados.convidado.sobrenome}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          E-mail
-                        </p>
-                        <p className="font-medium">{conviteDados.convidado.email}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                          <CreditCard className="h-3 w-3" />
-                          CPF
-                        </p>
-                        <p className="font-medium">{conviteDados.convidado.cpf}</p>
-                      </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        E-mail
+                      </p>
+                      <p className="font-medium">{conviteDados.comprador.email}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <CreditCard className="h-3 w-3" />
+                        CPF
+                      </p>
+                      <p className="font-medium">{conviteDados.comprador.cpf}</p>
                     </div>
                   </div>
-                </>
-              )}
+                </div>
 
-              {/* Data de criação */}
-              <Separator />
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="h-4 w-4" />
-                <span>Criado em: {new Date(conviteDados.criadoEm).toLocaleString("pt-BR")}</span>
-              </div>
-            </CardContent>
-          </Card>
+                {/* Convidado (se existir) */}
+                {conviteDados.convidado?.nome && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-500" />
+                        <h3 className="font-semibold text-gray-800">Convidado</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-500">Nome completo</p>
+                          <p className="font-medium">
+                            {conviteDados.convidado.nome} {conviteDados.convidado.sobrenome}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            E-mail
+                          </p>
+                          <p className="font-medium">{conviteDados.convidado.email}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <CreditCard className="h-3 w-3" />
+                            CPF
+                          </p>
+                          <p className="font-medium">{conviteDados.convidado.cpf}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Data de criação */}
+                <Separator />
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar className="h-4 w-4" />
+                  <span>Criado em: {new Date(conviteDados.criadoEm).toLocaleString("pt-BR")}</span>
+                </div>
+
+                {/* Botão para marcar presença */}
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={marcarPresenca}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                  >
+                    Marcar como Presente
+                  </button>
+                </div>
+              </CardContent>
+            </div>
+          </div>
         )}
       </div>
     </div>
