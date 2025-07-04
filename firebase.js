@@ -1,6 +1,6 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database"; // aqui é realtime database
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -13,9 +13,8 @@ const firebaseConfig = {
   measurementId: "G-NN84T7NQX9"
 };
 
-// Inicializa Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = getDatabase(app); // <- aqui, database realtime
 const analytics = getAnalytics(app);
 
 export { db, analytics };

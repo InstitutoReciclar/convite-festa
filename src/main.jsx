@@ -4,9 +4,9 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import React from 'react';
 import './index.css';
 import App from './App.jsx';
-import GerarConvite from './pages/gerarConvite';
-import Validador from './pages/validador';
-import ConviteConfirmado from './components/ui/convite';
+import Reserva from './pages/reserva';
+import ListaConvites from './pages/listaConvites';
+import LeitorQRCode from './pages/leitorQRcode';
 
 
 const router = createBrowserRouter([
@@ -14,9 +14,11 @@ const router = createBrowserRouter([
     path: '/',
     element: <App />,
     children: [
-      { path: '/', element: <GerarConvite /> },
-      { path: "/validador", element: <Validador />},
-      { path: "/convite/:codigo", element: <ConviteConfirmado />}
+      { path: "/", element: <Reserva />},
+      { path: "/ListaConvidados", element: <ListaConvites />},
+      { path: "/ConsultaConvidados", element: <LeitorQRCode />},
+
+      
     ],
   },
 ]);
