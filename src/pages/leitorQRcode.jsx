@@ -1,130 +1,3 @@
-// import React, { useEffect, useRef, useState } from "react";
-// import { Html5Qrcode } from "html5-qrcode";
-// import { db } from "../../firebase";
-// import { ref, get } from "firebase/database";
-
-// export default function LeitorQRCode() {
-//   const qrRegionId = "reader";
-//   const html5QrCodeRef = useRef(null);
-//   const [resultado, setResultado] = useState(null);
-//   const [conviteDados, setConviteDados] = useState(null);
-//   const [erro, setErro] = useState(null);
-
-//   useEffect(() => {
-//     html5QrCodeRef.current = new Html5Qrcode(qrRegionId);
-
-//     Html5Qrcode.getCameras()
-//       .then((devices) => {
-//         if (devices && devices.length) {
-//           const cameraId = devices[0].id;
-//           html5QrCodeRef.current
-//             .start(
-//               cameraId,
-//               { fps: 10, qrbox: 250 },
-//               async (decodedText) => {
-//                 setResultado(decodedText);
-
-//                 try {
-//                   await html5QrCodeRef.current.stop();
-//                 } catch {
-//                   // Ignora o erro se tentar parar scanner que não está rodando
-//                 }
-
-//                 try {
-//                   const conviteRef = ref(db, `convites/${decodedText}`);
-//                   const snapshot = await get(conviteRef);
-//                   if (snapshot.exists()) {
-//                     setConviteDados(snapshot.val());
-//                     setErro(null);
-//                   } else {
-//                     setConviteDados(null);
-//                     setErro("Convite não encontrado.");
-//                   }
-//                 } catch (error) {
-//                   setErro("Erro ao buscar convite: " + error.message);
-//                   setConviteDados(null);
-//                 }
-//               },
-//               (errorMessage) => {
-//                 // Você pode ignorar erros pequenos da leitura do QR aqui
-//               }
-//             )
-//             .catch((err) => {
-//               setErro("Erro ao iniciar a câmera: " + err);
-//             });
-//         } else {
-//           setErro("Nenhuma câmera encontrada.");
-//         }
-//       })
-//       .catch((err) => {
-//         setErro("Erro ao buscar câmeras: " + err);
-//       });
-
-//     return () => {
-//       if (html5QrCodeRef.current) {
-//         html5QrCodeRef.current
-//           .stop()
-//           .catch(() => {
-//             // Ignora erros caso scanner já tenha parado
-//           })
-//           .finally(() => {
-//             html5QrCodeRef.current.clear();
-//           });
-//       }
-//     };
-//   }, []);
-
-//   return (
-//     <div className="max-w-md mx-auto p-4">
-//       <h1 className="text-2xl font-bold mb-4">Leitor de QR Code do Convite</h1>
-//       <div id={qrRegionId} style={{ width: "300px", height: "300px", margin: "auto" }} />
-//       {resultado && (
-//         <div className="mt-4 p-4 border rounded bg-green-100">
-//           <strong>ID do Convite:</strong> {resultado}
-//         </div>
-//       )}
-//       {erro && (
-//         <div className="mt-4 p-4 border rounded bg-red-100 text-red-700">
-//           {erro}
-//         </div>
-//       )}
-//       {conviteDados && (
-//         <div className="mt-4 p-4 border rounded bg-blue-50">
-//           <h2 className="font-semibold mb-2">Dados do Convite</h2>
-//           <p>
-//             <strong>Comprador:</strong> {conviteDados.comprador.nome} {conviteDados.comprador.sobrenome}
-//           </p>
-//           <p>
-//             <strong>E-mail:</strong> {conviteDados.comprador.email}
-//           </p>
-//           <p>
-//             <strong>CPF:</strong> {conviteDados.comprador.cpf}
-//           </p>
-//           {conviteDados.convidado?.nome && (
-//             <>
-//               <p>
-//                 <strong>Convidado:</strong> {conviteDados.convidado.nome} {conviteDados.convidado.sobrenome}
-//               </p>
-//               <p>
-//                 <strong>E-mail:</strong> {conviteDados.convidado.email}
-//               </p>
-//               <p>
-//                 <strong>CPF:</strong> {conviteDados.convidado.cpf}
-//               </p>
-//             </>
-//           )}
-//           <p>
-//             <strong>Criado em:</strong>{" "}
-//             {new Date(conviteDados.criadoEm).toLocaleString()}
-//           </p>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
-
-// "use client"
 import { useEffect, useRef, useState } from "react"
 import { Html5Qrcode } from "html5-qrcode"
 import { db } from "../../firebase"
@@ -254,26 +127,28 @@ export default function LeitorQRCode() {
   }, [])
 
   // Marca presença e reinicia scanner
-  async function marcarPresenca() {
-    if (!resultado) return
-    try {
-      const conviteRef = ref(db, `convites/${resultado}`)
-      await update(conviteRef, { presente: true })
-      alert("Convidado marcado como presente!")
-      setModalAberto(false)
-      setConviteDados(null)
-      setResultado(null)
-      setErro(null)
 
-      // Reinicia a leitura para novo scan
-      if (cameraId) {
-        await pararScanner()
-        iniciarScanner(cameraId)
-      }
-    } catch (error) {
-      alert("Erro ao marcar presença: " + error.message)
+async function marcarPresenca() {
+  if (!resultado) return
+  try {
+    const conviteRef = ref(db, `convites/${resultado}`)
+    await update(conviteRef, { status: "presente" })
+    alert("Convidado marcado como presente!")
+    setModalAberto(false)
+    setConviteDados(null)
+    setResultado(null)
+    setErro(null)
+
+    // Reinicia scanner
+    if (cameraId) {
+      await pararScanner()
+      iniciarScanner(cameraId)
     }
+  } catch (error) {
+    alert("Erro ao marcar presença: " + error.message)
   }
+}
+z
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">

@@ -1,171 +1,3 @@
-// import React, { useState } from "react";
-// import { db } from "../../firebase";
-// import { ref, push, set } from "firebase/database";
-
-// import QRCode from "react-qr-code";
-// export default function ReservaConvite() {
-//   const [form, setForm] = useState({
-//     nome: "",
-//     sobrenome: "",
-//     email: "",
-//     cpf: "",
-//     convidadoNome: "",
-//     convidadoSobrenome: "",
-//     convidadoEmail: "",
-//     convidadoCPF: "",
-//   });
-//   const [qrCodeValue, setQrCodeValue] = useState(null);
-//   const [loading, setLoading] = useState(false);
-
-//   function handleChange(e) {
-//     const { name, value } = e.target;
-//     setForm((f) => ({ ...f, [name]: value }));
-//   }
-
-//   async function handleSubmit(e) {
-//     e.preventDefault();
-//     setLoading(true);
-
-//     if (!form.nome || !form.sobrenome || !form.email || !form.cpf) {
-//       alert("Por favor, preencha todos os dados obrigatórios do comprador.");
-//       setLoading(false);
-//       return;
-//     }
-
-//     try {
-//       const conviteRef = ref(db, "convites");
-//       const newConviteRef = push(conviteRef);
-//       const conviteId = newConviteRef.key;
-
-//       const conviteData = {
-//         comprador: {
-//           nome: form.nome,
-//           sobrenome: form.sobrenome,
-//           email: form.email,
-//           cpf: form.cpf,
-//         },
-//         convidado: {
-//           nome: form.convidadoNome || null,
-//           sobrenome: form.convidadoSobrenome || null,
-//           email: form.convidadoEmail || null,
-//           cpf: form.convidadoCPF || null,
-//         },
-//         criadoEm: new Date().toISOString(),
-//       };
-
-//       await set(newConviteRef, conviteData);
-//       setQrCodeValue(conviteId);
-//     } catch (error) {
-//       alert("Erro ao reservar convite: " + error.message);
-//     } finally {
-//       setLoading(false);
-//     }
-//   }
-
-//   return (
-//     <div className="max-w-md mx-auto p-4">
-//       <h1 className="text-2xl font-bold mb-4">Reserva de Convite</h1>
-//       <form onSubmit={handleSubmit} className="space-y-4">
-//         {/* Campos obrigatórios do comprador */}
-//         <input
-//           type="text"
-//           name="nome"
-//           placeholder="Nome (comprador) *"
-//           value={form.nome}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//           required
-//         />
-//         <input
-//           type="text"
-//           name="sobrenome"
-//           placeholder="Sobrenome (comprador) *"
-//           value={form.sobrenome}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//           required
-//         />
-//         <input
-//           type="email"
-//           name="email"
-//           placeholder="E-mail (comprador) *"
-//           value={form.email}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//           required
-//         />
-//         <input
-//           type="text"
-//           name="cpf"
-//           placeholder="CPF (comprador) *"
-//           value={form.cpf}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//           required
-//         />
-
-//         <hr className="my-4" />
-
-//         <h2 className="text-xl font-semibold">Dados do Convidado (opcional)</h2>
-
-//         <input
-//           type="text"
-//           name="convidadoNome"
-//           placeholder="Nome (convidado)"
-//           value={form.convidadoNome}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//         />
-//         <input
-//           type="text"
-//           name="convidadoSobrenome"
-//           placeholder="Sobrenome (convidado)"
-//           value={form.convidadoSobrenome}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//         />
-//         <input
-//           type="email"
-//           name="convidadoEmail"
-//           placeholder="E-mail (convidado)"
-//           value={form.convidadoEmail}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//         />
-//         <input
-//           type="text"
-//           name="convidadoCPF"
-//           placeholder="CPF (convidado)"
-//           value={form.convidadoCPF}
-//           onChange={handleChange}
-//           className="w-full border rounded p-2"
-//         />
-
-//         <button
-//           type="submit"
-//           disabled={loading}
-//           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-//         >
-//           {loading ? "Reservando..." : "Reservar Convite"}
-//         </button>
-//       </form>
-
-//       {qrCodeValue && (
-//         <div className="mt-8 text-center">
-//           <h3 className="font-semibold mb-2">QR Code do Convite</h3>
-//           <QRCode value={qrCodeValue} size={256} />
-//           <p className="mt-2 text-sm text-gray-600">
-//             Mostre este QR Code no evento para validar sua entrada.
-//           </p>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
-
-"use client"
-
 import { useState } from "react"
 import { db } from "../../firebase"
 import { ref, push, set } from "firebase/database"
@@ -177,20 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import {
-  Ticket,
-  User,
-  Mail,
-  CreditCard,
-  UserPlus,
-  Download,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  QrCode,
-  Copy,
-  RotateCcw,
-} from "lucide-react"
+import { Ticket, User, Mail, CreditCard, UserPlus, Download, CheckCircle, AlertCircle, Loader2, QrCode, Copy, RotateCcw } from "lucide-react"
 import { Link } from "react-router-dom"
 
 export default function ReservaConvite() {
@@ -214,7 +33,6 @@ export default function ReservaConvite() {
     const { name, value } = e.target
     setForm((f) => ({ ...f, [name]: value }))
 
-    // Limpar erro do campo quando usuário começar a digitar
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }))
     }
@@ -223,7 +41,6 @@ export default function ReservaConvite() {
   function validateForm() {
     const newErrors = {}
 
-    // Validações do comprador (obrigatórias)
     if (!form.nome.trim()) newErrors.nome = "Nome é obrigatório"
     if (!form.sobrenome.trim()) newErrors.sobrenome = "Sobrenome é obrigatório"
     if (!form.email.trim()) {
@@ -237,7 +54,6 @@ export default function ReservaConvite() {
       newErrors.cpf = "CPF deve ter 11 dígitos"
     }
 
-    // Validações do convidado (opcionais, mas se preenchidas devem ser válidas)
     if (form.convidadoEmail && !/\S+@\S+\.\S+/.test(form.convidadoEmail)) {
       newErrors.convidadoEmail = "E-mail do convidado inválido"
     }
@@ -263,23 +79,12 @@ export default function ReservaConvite() {
       const conviteRef = ref(db, "convites")
       const newConviteRef = push(conviteRef)
       const conviteId = newConviteRef.key
-
       const conviteData = {
-        comprador: {
-          nome: form.nome,
-          sobrenome: form.sobrenome,
-          email: form.email,
-          cpf: form.cpf,
-        },
-        convidado: {
-          nome: form.convidadoNome || null,
-          sobrenome: form.convidadoSobrenome || null,
-          email: form.convidadoEmail || null,
-          cpf: form.convidadoCPF || null,
-        },
+        comprador: { nome: form.nome, sobrenome: form.sobrenome, email: form.email, cpf: form.cpf, },
+        convidado: { nome: form.convidadoNome || null, sobrenome: form.convidadoSobrenome || null, email: form.convidadoEmail || null, cpf: form.convidadoCPF || null},
+        status: "pendente",
         criadoEm: new Date().toISOString(),
       }
-
       await set(newConviteRef, conviteData)
       setQrCodeValue(conviteId)
       setSuccess(true)
@@ -309,7 +114,6 @@ export default function ReservaConvite() {
   function copyQRCodeId() {
     if (qrCodeValue) {
       navigator.clipboard.writeText(qrCodeValue)
-      // Aqui você poderia adicionar um toast de confirmação
     }
   }
 
@@ -321,11 +125,14 @@ export default function ReservaConvite() {
     const img = new Image()
 
     img.onload = () => {
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0)
-      const pngFile = canvas.toDataURL("image/png")
+      const padding = 20
+      canvas.width = img.width + padding * 2
+      canvas.height = img.height + padding * 2
+      ctx.fillStyle = "white"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, padding, padding)
 
+      const pngFile = canvas.toDataURL("image/png")
       const downloadLink = document.createElement("a")
       downloadLink.download = `convite-${qrCodeValue}.png`
       downloadLink.href = pngFile
