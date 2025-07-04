@@ -148,7 +148,7 @@ async function marcarPresenca() {
     alert("Erro ao marcar presença: " + error.message)
   }
 }
-z
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
