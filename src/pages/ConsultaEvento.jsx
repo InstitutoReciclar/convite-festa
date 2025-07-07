@@ -37,6 +37,8 @@ import {
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
+import ReservaConvite from "./reserva" // ajuste o caminho conforme seu projeto
+
 export default function VisualizarEventos() {
   const router = useNavigate()
 
@@ -50,6 +52,7 @@ export default function VisualizarEventos() {
   const [sortOrder, setSortOrder] = useState("asc")
   const [selectedEvento, setSelectedEvento] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null)
+  const [mostrarGeradorConvite, setMostrarGeradorConvite] = useState(false)
 
   const tiposEvento = [
     { value: "festa", label: "Festa", icon: "🎉", color: "bg-pink-100 text-pink-800 border-pink-200" },
@@ -395,9 +398,12 @@ export default function VisualizarEventos() {
                   <Users className="h-4 w-4 mr-2" />
                   Gerenciar Convidados
                 </Button>
-                <Button variant="outline">
+                <Button
+                  variant="outline"
+                  onClick={() => setMostrarGeradorConvite(!mostrarGeradorConvite)}
+                >
                   <PartyPopper className="h-4 w-4 mr-2" />
-                  Gerar Convites
+                  {mostrarGeradorConvite ? "Fechar Convites" : "Gerar Convites"}
                 </Button>
                 <Button
                   variant="outline"
@@ -408,6 +414,13 @@ export default function VisualizarEventos() {
                   Excluir Evento
                 </Button>
               </div>
+
+              {/* Gerador de convites */}
+              {mostrarGeradorConvite && (
+                <div className="pt-6">
+                  <ReservaConvite eventoSelecionado={selectedEvento} />
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -449,155 +462,116 @@ export default function VisualizarEventos() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <Card className="border-0 shadow-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+        {/* Estatísticas */}
+        <Card className="border-0 shadow-lg">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="text-3xl font-bold">
-                Visualizar Eventos
-              </CardTitle>
-
-              <Button
-                onClick={() => router.push("/cadastroEvento")}
-                size="sm"
-                className="bg-white text-purple-700 hover:bg-gray-200"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Evento
-              </Button>
-            </div>
+            <CardTitle className="text-2xl font-bold">Eventos Cadastrados</CardTitle>
+            <p className="text-gray-600">Total: {stats.total}</p>
           </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
+            <div className="bg-blue-100 text-blue-800 rounded p-4 shadow">
+              <p className="font-bold text-3xl">{stats.agendados}</p>
+              <p>Agendados</p>
+            </div>
+            <div className="bg-green-100 text-green-800 rounded p-4 shadow">
+              <p className="font-bold text-3xl">{stats.esteMes}</p>
+              <p>Este Mês</p>
+            </div>
+            <div className="bg-gray-100 text-gray-800 rounded p-4 shadow">
+              <p className="font-bold text-3xl">{stats.finalizados}</p>
+              <p>Finalizados</p>
+            </div>
+          </CardContent>
         </Card>
 
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border-0 shadow-lg">
-            <CardContent className="text-center">
-              <h3 className="text-sm font-medium text-gray-400">Total de Eventos</h3>
-              <p className="mt-1 text-2xl font-bold text-gray-800">{stats.total}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-lg">
-            <CardContent className="text-center">
-              <h3 className="text-sm font-medium text-green-600">Agendados</h3>
-              <p className="mt-1 text-2xl font-bold text-green-800">{stats.agendados}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-lg">
-            <CardContent className="text-center">
-              <h3 className="text-sm font-medium text-gray-500">Finalizados</h3>
-              <p className="mt-1 text-2xl font-bold text-gray-700">{stats.finalizados}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-lg">
-            <CardContent className="text-center">
-              <h3 className="text-sm font-medium text-purple-600">Este Mês</h3>
-              <p className="mt-1 text-2xl font-bold text-purple-800">{stats.esteMes}</p>
-            </CardContent>
-          </Card>
+        {/* Filtro e busca */}
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <Input
+            placeholder="Buscar por nome, local ou responsável"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-grow max-w-xl"
+            spellCheck={false}
+            autoComplete="off"
+          />
+
+          {/* Filtros */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="rounded border border-gray-300 px-3 py-1"
+          >
+            <option value="todos">Todos os Tipos</option>
+            {tiposEvento.map((tipo) => (
+              <option key={tipo.value} value={tipo.value}>
+                {tipo.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="rounded border border-gray-300 px-3 py-1"
+          >
+            <option value="todos">Todas as Datas</option>
+            <option value="hoje">Hoje</option>
+            <option value="amanha">Amanhã</option>
+            <option value="semana">Próxima Semana</option>
+            <option value="mes">Próximo Mês</option>
+            <option value="passados">Passados</option>
+          </select>
+
+          {/* Ordenação */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded border border-gray-300 px-3 py-1"
+          >
+            <option value="data">Ordenar por Data</option>
+            <option value="nome">Ordenar por Nome</option>
+            <option value="tipo">Ordenar por Tipo</option>
+            <option value="criacao">Ordenar por Criação</option>
+          </select>
+
+          <button
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            className="px-3 py-1 border rounded border-gray-300"
+            title={`Ordem: ${sortOrder === "asc" ? "Ascendente" : "Descendente"}`}
+          >
+            {sortOrder === "asc" ? <SortAsc className="inline-block w-5 h-5" /> : <SortDesc className="inline-block w-5 h-5" />}
+          </button>
         </div>
 
-        {/* Filtros e busca */}
-        <Card className="border-0 shadow-lg p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <Input
-              type="search"
-              placeholder="Buscar eventos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-              spellCheck={false}
-            />
-            <div className="flex flex-wrap gap-2 items-center">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1"
-              >
-                <option value="todos">Todos os Tipos</option>
-                {tiposEvento.map((tipo) => (
-                  <option key={tipo.value} value={tipo.value}>
-                    {tipo.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1"
-              >
-                <option value="todos">Todas as Datas</option>
-                <option value="hoje">Hoje</option>
-                <option value="amanha">Amanhã</option>
-                <option value="semana">Próxima Semana</option>
-                <option value="mes">Próximo Mês</option>
-                <option value="passados">Eventos Passados</option>
-              </select>
-
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1"
-              >
-                <option value="data">Ordenar por Data</option>
-                <option value="nome">Ordenar por Nome</option>
-                <option value="tipo">Ordenar por Tipo</option>
-                <option value="criacao">Ordenar por Criação</option>
-              </select>
-
-              <button
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                title={`Ordenação: ${sortOrder === "asc" ? "Crescente" : "Decrescente"}`}
-                className="p-1 border rounded border-gray-300"
-              >
-                {sortOrder === "asc" ? <SortAsc size={18} /> : <SortDesc size={18} />}
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Lista */}
-        {filteredEventos.length === 0 ? (
-          <p className="text-center text-gray-600 mt-8 text-lg">Nenhum evento encontrado.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredEventos.map((evento) => {
-              const tipo = tiposEvento.find((t) => t.value === evento.tipoEvento) || tiposEvento.find((t) => t.value === "outro")
+        {/* Lista de Eventos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEventos.length === 0 ? (
+            <p className="text-center col-span-full text-gray-600 mt-12">Nenhum evento encontrado.</p>
+          ) : (
+            filteredEventos.map((evento) => {
+              const tipo = tiposEvento.find((t) => t.value === evento.tipoEvento)
               const status = getEventStatus(evento)
 
               return (
                 <Card
                   key={evento.id}
-                  className="cursor-pointer hover:shadow-xl transition-shadow"
+                  className="border-0 shadow cursor-pointer hover:shadow-lg transition"
                   onClick={() => setSelectedEvento(evento)}
                 >
-                  <CardHeader className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{tipo.icon}</span>
-                      <h3 className="text-lg font-semibold text-gray-800">{evento.nomeEvento}</h3>
+                  <CardContent className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg truncate">{evento.nomeEvento}</h3>
+                      {tipo && <Badge className={tipo.color + " border"}>{tipo.label}</Badge>}
                     </div>
-                    <Badge className={`${tipo.color} border`}>{tipo.label}</Badge>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-2">
-                    <p className="text-sm text-gray-600 flex items-center gap-2">
-                      <Calendar size={16} /> {formatDate(evento.data)}
-                    </p>
-                    <p className="text-sm text-gray-600 flex items-center gap-2">
-                      <Clock size={16} /> {formatTime(evento.horaInicio)} - {formatTime(evento.horaFim)}
-                    </p>
-                    <p className="text-sm text-gray-600 flex items-center gap-2">
-                      <MapPin size={16} /> {evento.local}
-                    </p>
-                    <Badge className={`${status.color} border w-max self-start`}>
-                      {status.label}
-                    </Badge>
+                    <p className="text-gray-600">{evento.local}</p>
+                    <p className="text-gray-600 text-sm">{formatDate(evento.data)}</p>
+                    <Badge className={status.color + " border self-start"}>{status.label}</Badge>
                   </CardContent>
                 </Card>
               )
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
     </div>
   )
