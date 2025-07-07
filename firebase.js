@@ -1,7 +1,8 @@
-// src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database"; // aqui é realtime database
-import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBdJV1jM2kvFzH_DIMpM5Xvcf26qPwOdxM",
@@ -11,10 +12,17 @@ const firebaseConfig = {
   messagingSenderId: "440872089223",
   appId: "1:440872089223:web:767d26c4ac6dd28e612a22",
   measurementId: "G-NN84T7NQX9"
-};
-
+}
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app); // <- aqui, database realtime
-const analytics = getAnalytics(app);
+const auth = getAuth(app);
+const firestoreDB = getFirestore(app);
+const dbRealtime = getDatabase(app);
 
-export { db, analytics };
+let analytics = null;
+isSupported().then(supported => {
+  if (supported) {
+    analytics = getAnalytics(app);
+  }
+});
+
+export { app, auth, firestoreDB, dbRealtime, analytics };

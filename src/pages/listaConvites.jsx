@@ -1,90 +1,5 @@
-// import React, { useEffect, useState } from "react";
-// import { db } from "../../firebase";
-// import { ref, onValue } from "firebase/database";
-
-// export default function ListaConvites() {
-//   const [convites, setConvites] = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     const convitesRef = ref(db, "convites");
-
-//     // Escuta dados em tempo real
-//     const unsubscribe = onValue(
-//       convitesRef,
-//       (snapshot) => {
-//         const data = snapshot.val();
-//         if (data) {
-//           // Converte objeto para array
-//           const lista = Object.entries(data).map(([key, value]) => ({
-//             id: key,
-//             ...value,
-//           }));
-//           setConvites(lista);
-//         } else {
-//           setConvites([]);
-//         }
-//         setLoading(false);
-//       },
-//       (error) => {
-//         console.error("Erro ao buscar convites:", error);
-//         setLoading(false);
-//       }
-//     );
-
-//     // Cleanup na desmontagem
-//     return () => unsubscribe();
-//   }, []);
-
-//   if (loading) return <p>Carregando convites...</p>;
-
-//   if (convites.length === 0) return <p>Nenhum convite encontrado.</p>;
-
-//   return (
-//     <div className="max-w-4xl mx-auto p-4">
-//       <h1 className="text-2xl font-bold mb-4">Lista de Convites</h1>
-//       <table className="w-full border-collapse border">
-//         <thead>
-//           <tr>
-//             <th className="border p-2">ID</th>
-//             <th className="border p-2">Comprador</th>
-//             <th className="border p-2">E-mail Comprador</th>
-//             <th className="border p-2">CPF Comprador</th>
-//             <th className="border p-2">Convidado</th>
-//             <th className="border p-2">E-mail Convidado</th>
-//             <th className="border p-2">CPF Convidado</th>
-//             <th className="border p-2">Criado Em</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           {convites.map((convite) => (
-//             <tr key={convite.id} className="odd:bg-gray-100">
-//               <td className="border p-2 font-mono text-xs">{convite.id}</td>
-//               <td className="border p-2">
-//                 {convite.comprador?.nome} {convite.comprador?.sobrenome}
-//               </td>
-//               <td className="border p-2">{convite.comprador?.email}</td>
-//               <td className="border p-2">{convite.comprador?.cpf}</td>
-//               <td className="border p-2">
-//                 {convite.convidado?.nome || "-"} {convite.convidado?.sobrenome || ""}
-//               </td>
-//               <td className="border p-2">{convite.convidado?.email || "-"}</td>
-//               <td className="border p-2">{convite.convidado?.cpf || "-"}</td>
-//               <td className="border p-2 text-xs">
-//                 {new Date(convite.criadoEm).toLocaleString()}
-//               </td>
-//             </tr>
-//           ))}
-//         </tbody>
-//       </table>
-//     </div>
-//   );
-// }
-
-"use client"
-
 import { useEffect, useState } from "react"
-import { db } from "../../firebase"
+import { dbRealtime } from "../../firebase" 
 import { ref, onValue } from "firebase/database"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -102,7 +17,7 @@ export default function ListaConvites() {
   const [selectedConvite, setSelectedConvite] = useState(null)
 
   useEffect(() => {
-    const convitesRef = ref(db, "convites")
+    const convitesRef = ref(dbRealtime, "convites")
 
     // Escuta dados em tempo real
     const unsubscribe = onValue(
@@ -308,6 +223,7 @@ export default function ListaConvites() {
                   <TableHead className="font-semibold">Contato</TableHead>
                   <TableHead className="font-semibold">Convidado</TableHead>
                   <TableHead className="font-semibold">Data</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
                   <TableHead className="font-semibold">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -350,11 +266,15 @@ export default function ListaConvites() {
                         {formatDate(convite.criadoEm)}
                       </div>
                     </TableCell>
+                         <TableCell>
+                     {convite.status}
+                    </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedConvite(convite)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TableCell>
+                    
                   </TableRow>
                 ))}
               </TableBody>

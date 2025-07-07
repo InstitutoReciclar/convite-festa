@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { db } from "../../firebase"
+import { dbRealtime } from "../../firebase"
 import { ref, push, set } from "firebase/database"
 import QRCode from "react-qr-code"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -76,13 +76,13 @@ export default function ReservaConvite() {
     }
 
     try {
-      const conviteRef = ref(db, "convites")
+      const conviteRef = ref(dbRealtime, "convites")
       const newConviteRef = push(conviteRef)
       const conviteId = newConviteRef.key
       const conviteData = {
         comprador: { nome: form.nome, sobrenome: form.sobrenome, email: form.email, cpf: form.cpf, },
         convidado: { nome: form.convidadoNome || null, sobrenome: form.convidadoSobrenome || null, email: form.convidadoEmail || null, cpf: form.convidadoCPF || null},
-        status: "pendente",
+        status: "Convidado Pendente",
         criadoEm: new Date().toISOString(),
       }
       await set(newConviteRef, conviteData)

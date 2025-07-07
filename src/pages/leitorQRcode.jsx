@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Html5Qrcode } from "html5-qrcode"
-import { db } from "../../firebase"
+import { dbRealtime } from "../../firebase"
 import { ref, get, update } from "firebase/database"
 import {
   Card,
@@ -51,7 +51,7 @@ export default function LeitorQRCode() {
           setIsScanning(false)
           // Busca dados no banco
           try {
-            const conviteRef = ref(db, `convites/${decodedText}`)
+            const conviteRef = ref(dbRealtime, `convites/${decodedText}`)
             const snapshot = await get(conviteRef)
             if (snapshot.exists()) {
               setConviteDados(snapshot.val())
@@ -131,8 +131,8 @@ export default function LeitorQRCode() {
 async function marcarPresenca() {
   if (!resultado) return
   try {
-    const conviteRef = ref(db, `convites/${resultado}`)
-    await update(conviteRef, { status: "presente" })
+    const conviteRef = ref(dbRealtime, `convites/${resultado}`)
+    await update(conviteRef, { status: "Convidado Presente" })
     alert("Convidado marcado como presente!")
     setModalAberto(false)
     setConviteDados(null)
