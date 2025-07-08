@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getDatabase, ref, update } from "firebase/database";
+import { getDatabase, ref, off, update } from "firebase/database";
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -26,4 +26,4 @@ isSupported().then(supported => {
   }
 });
 
-export { app, auth, update, firestoreDB, dbRealtime, analytics };
+export { app, auth, update,off, ref, firestoreDB, dbRealtime, analytics };
