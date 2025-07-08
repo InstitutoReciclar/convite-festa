@@ -295,6 +295,8 @@ useEffect(() => {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(12)
       doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, rightX, startY + qrSize + 26)
+      doc.setFontSize(12)
+      doc.text(`Codigo: ${qrConvidado ?? "N/A"}`, rightX, startY + qrSize + 34)
     }
     doc.setFont("helvetica", "bold")
     doc.setFontSize(20)

@@ -1,37 +1,3 @@
-// import { StrictMode, Suspense } from 'react';
-// import { createRoot } from 'react-dom/client';
-// import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-// import React from 'react';
-// import './index.css';
-// import App from './App.jsx';
-// import Reserva from './pages/reserva';
-// import ListaConvites from './pages/listaConvites';
-// import LeitorQRCode from './pages/leitorQRcode';
-// import CadastroEvento from './pages/CriarEvento';
-// import VisualizarEventos from './pages/ConsultaEvento';
-// import Home from './pages/Home';
-
-
-// const router = createBrowserRouter([
-//   {
-//     path: '/',
-//     element: <App />,
-//     children: [
-//       { path: "/", element: <Home />},
-//       { path: "/ListaConvidados", element: <ListaConvites />},
-//       { path: "/ConsultaConvidados", element: <LeitorQRCode />},
-//       { path: "/CriarEvento", element: <CadastroEvento />},
-//       { path: "/ConsultarEvento", element: <VisualizarEventos />},
-//       { path: "/CriarConvites", element: <Reserva />},
-
-      
-//     ],
-//   },
-// ]);
-// createRoot(document.getElementById('root')).render( <StrictMode> <RouterProvider router={router} /> </StrictMode>);
-
-
-
 import React, { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
@@ -40,7 +6,6 @@ import { ProtectedRoute } from "./components/enum/protectedRouted/protectedRoute
 import App from "./App.jsx";
 import './index.css';
 import LoginForm from "@/pages/Login";
-import Home from "./pages/Home.jsx";
 import PaginaNaoEncontradaGoogleStyle from "./components/error";
 import Registro from "./pages/Register_User";
 
@@ -51,7 +16,6 @@ const VisualizarEventos = React.lazy(() => import("@/pages/ConsultaEvento.jsx"))
 const CadastroEvento = React.lazy(() => import("@/pages/CriarEvento.jsx"));
 
 // Definição dos tipos de usuários permitidos
-const ADMIN_ONLY = [UserType.ADMIN];
 const ALL_TYPES = [UserType.ADMIN, UserType.USER, UserType.TI];
 
 const router = createBrowserRouter([
@@ -63,10 +27,12 @@ const router = createBrowserRouter([
       { path: "/", element: <LoginForm /> },
 
       {
-        path: "/home",
+        path: "/CriarEvento",
         element: (
           <ProtectedRoute allowedTypes={ALL_TYPES}>
-            <Home />
+            <Suspense fallback={<div>Carregando Cadastro de Evento...</div>}>
+              <CadastroEvento />
+            </Suspense>
           </ProtectedRoute>
         ),
       },
@@ -82,16 +48,7 @@ const router = createBrowserRouter([
         ),
       },
 
-      {
-        path: "/CriarEvento",
-        element: (
-          <ProtectedRoute allowedTypes={ALL_TYPES}>
-            <Suspense fallback={<div>Carregando Cadastro de Evento...</div>}>
-              <CadastroEvento />
-            </Suspense>
-          </ProtectedRoute>
-        ),
-      },
+     
 
       {
         path: "/ConsultarEvento",
