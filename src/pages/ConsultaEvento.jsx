@@ -1,234 +1,3 @@
-// import React, { useEffect, useState, useRef } from 'react';
-// import { getDatabase, ref, onValue, update } from 'firebase/database';
-// import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-// import { Badge } from '@/components/ui/badge';
-// import { Button } from '@/components/ui/button';
-// import { Card } from '@/components/ui/card';
-
-// import { Html5Qrcode } from "html5-qrcode";
-// import toast, { Toaster } from 'react-hot-toast';
-
-// const VisualizarEventos = ({ idEvento, onVoltar }) => {
-//   const [convites, setConvites] = useState([]);
-//   const [conviteSelecionado, setConviteSelecionado] = useState(null);
-//   const [qrModalAberto, setQrModalAberto] = useState(false);
-//   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
-//   const [scannerLoading, setScannerLoading] = useState(false);
-//   const [filtro, setFiltro] = useState("");
-
-//   const qrCodeRegionId = "html5qr-code-full-region";
-//   const html5QrCodeRef = useRef(null);
-//   const db = getDatabase();
-
-//   useEffect(() => {
-//     if (!idEvento) {
-//       console.warn("idEvento não definido");
-//       return;
-//     }
-
-//     const convitesRef = ref(db, `convites/${idEvento}`);
-//     console.log("Buscando convites no caminho:", `convites/${idEvento}`);
-
-//     const unsubscribe = onValue(convitesRef, (snapshot) => {
-//       const dados = snapshot.val();
-//       console.log("Dados recebidos do banco:", dados);
-
-//       if (!dados || typeof dados !== 'object') {
-//         setConvites([]);
-//         return;
-//       }
-
-//       const lista = Object.entries(dados)
-//         .filter(([_, data]) => typeof data === 'object' && data !== null)
-//         .map(([id, data]) => ({ id, ...data }));
-
-//       setConvites(lista);
-//     }, (error) => {
-//       console.error("Erro ao ler convites:", error);
-//       toast.error("Erro ao ler dados do evento.");
-//       setConvites([]);
-//     });
-
-//     return () => unsubscribe();
-//   }, [db, idEvento]);
-
-//   const validarConvite = (conviteId) => {
-//     update(ref(db, `convites/${idEvento}/${conviteId}`), {
-//       status: 'convidado presente'
-//     }).then(() => {
-//       toast.success("Presença confirmada!");
-//       setModalDetalhesAberto(false);
-//     }).catch((err) => {
-//       toast.error("Erro ao confirmar presença.");
-//     });
-//   };
-
-//   const handleQRCodeRead = (decodedText) => {
-//     const conviteEncontrado = convites.find((c) =>
-//       c.id === decodedText ||
-//       c.comprador?.email === decodedText ||
-//       c.comprador?.cpf === decodedText ||
-//       c.convidado?.email === decodedText ||
-//       c.convidado?.cpf === decodedText
-//     );
-
-//     if (!conviteEncontrado) {
-//       toast.error("Convite não encontrado!");
-//       setQrModalAberto(false);
-//       return;
-//     }
-
-//     if (conviteEncontrado.status === "convidado presente") {
-//       toast.error("Já marcado como presente!");
-//       setQrModalAberto(false);
-//       return;
-//     }
-
-//     update(ref(db, `convites/${idEvento}/${conviteEncontrado.id}`), {
-//       status: "convidado presente"
-//     }).then(() => {
-//       setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" });
-//       setModalDetalhesAberto(true);
-//       setQrModalAberto(false);
-//       if (html5QrCodeRef.current) {
-//         html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear());
-//       }
-//       toast.success("Presença confirmada!");
-//     }).catch(() => toast.error("Erro ao confirmar presença."));
-//   };
-
-//   useEffect(() => {
-//     if (qrModalAberto) {
-//       setScannerLoading(true);
-//       const iniciarScanner = () => {
-//         const element = document.getElementById(qrCodeRegionId);
-//         if (!element) {
-//           toast.error("Erro ao preparar o scanner.");
-//           setQrModalAberto(false);
-//           return;
-//         }
-//         if (!html5QrCodeRef.current) {
-//           html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId);
-//         }
-//         html5QrCodeRef.current.start(
-//           { facingMode: "environment" },
-//           { fps: 10, qrbox: 250 },
-//           handleQRCodeRead
-//         ).then(() => setScannerLoading(false)).catch(() => {
-//           setScannerLoading(false);
-//           toast.error("Erro ao iniciar câmera.");
-//           setQrModalAberto(false);
-//         });
-//       };
-//       const timer = setTimeout(iniciarScanner, 300);
-//       return () => clearTimeout(timer);
-//     } else {
-//       if (html5QrCodeRef.current) {
-//         html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear());
-//         html5QrCodeRef.current = null;
-//       }
-//       setScannerLoading(false);
-//     }
-//   }, [qrModalAberto]);
-
-//   return (
-//     <>
-//       <Toaster position="top-center" />
-//       <div className="max-w-6xl mx-auto p-6 space-y-6">
-//         <Button variant="ghost" onClick={onVoltar}>⬅ Voltar para Evento</Button>
-
-//         <div className="flex justify-between items-center">
-//           <h2 className="text-2xl font-bold text-purple-700">Convidados do Evento</h2>
-//           <Button onClick={() => setQrModalAberto(true)}>📷 Ler QR Code</Button>
-//         </div>
-
-//         <div className="mt-4">
-//           <input
-//             type="text"
-//             placeholder="🔍 Pesquisar por nome, email ou CPF"
-//             value={filtro}
-//             onChange={(e) => setFiltro(e.target.value.toLowerCase())}
-//             className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-//           />
-//         </div>
-
-//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-//           {convites.filter((c) => {
-//             const busca = filtro.toLowerCase();
-//             return (
-//               c.comprador?.nome?.toLowerCase().includes(busca) ||
-//               c.comprador?.sobrenome?.toLowerCase().includes(busca) ||
-//               c.comprador?.email?.toLowerCase().includes(busca) ||
-//               c.comprador?.cpf?.includes(busca) ||
-//               c.convidado?.nome?.toLowerCase().includes(busca) ||
-//               c.convidado?.sobrenome?.toLowerCase().includes(busca)
-//             );
-//           }).map((convite) => (
-//             <Card
-//               key={convite.id}
-//               className="p-4 cursor-pointer border-2 hover:border-purple-500"
-//               onClick={() => {
-//                 setConviteSelecionado(convite);
-//                 setModalDetalhesAberto(true);
-//               }}
-//             >
-//               <h3 className="font-bold text-lg">{convite.comprador?.nome} {convite.comprador?.sobrenome}</h3>
-//               <p className="text-sm text-gray-600">{convite.comprador?.email}</p>
-//               <div className="mt-2">
-//                 <Badge className={
-//                   convite.status === 'convidado presente'
-//                     ? 'bg-green-100 text-green-700'
-//                     : 'bg-gray-100 text-gray-700'
-//                 }>
-//                   {convite.status || 'pendente'}
-//                 </Badge>
-//               </div>
-//             </Card>
-//           ))}
-//         </div>
-
-//         <Dialog open={qrModalAberto} onOpenChange={setQrModalAberto}>
-//           <DialogContent className="max-w-md">
-//             <DialogHeader>
-//               <DialogTitle>Escanear QR Code</DialogTitle>
-//             </DialogHeader>
-//             {scannerLoading && <p className="text-center text-gray-500 mb-2">Carregando câmera...</p>}
-//             <div id={qrCodeRegionId} style={{ width: "100%", minHeight: "300px" }} />
-//           </DialogContent>
-//         </Dialog>
-
-//         <Dialog open={modalDetalhesAberto} onOpenChange={setModalDetalhesAberto}>
-//           <DialogContent className="max-w-lg">
-//             <DialogHeader>
-//               <DialogTitle>Detalhes do Convite</DialogTitle>
-//             </DialogHeader>
-//             {conviteSelecionado && (
-//               <div className="space-y-2">
-//                 <p><strong>Nome:</strong> {conviteSelecionado.comprador?.nome} {conviteSelecionado.comprador?.sobrenome}</p>
-//                 <p><strong>Email:</strong> {conviteSelecionado.comprador?.email}</p>
-//                 <p><strong>CPF:</strong> {conviteSelecionado.comprador?.cpf}</p>
-//                 {conviteSelecionado.convidado?.nome && (
-//                   <p><strong>Convidado:</strong> {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}</p>
-//                 )}
-//                 <p><strong>Status:</strong> {conviteSelecionado.status || 'pendente'}</p>
-//                 {conviteSelecionado.status !== 'convidado presente' && (
-//                   <Button className="mt-4 w-full bg-green-600 text-white hover:bg-green-700" onClick={() => validarConvite(conviteSelecionado.id)}>
-//                     ✅ Marcar como presente
-//                   </Button>
-//                 )}
-//               </div>
-//             )}
-//           </DialogContent>
-//         </Dialog>
-//       </div>
-//     </>
-//   );
-// };
-
-// export default VisualizarEventos;
-
-
-
 "use client"
 import { useEffect, useState, useRef } from "react"
 import { getDatabase, ref, onValue, update } from "firebase/database"
@@ -362,7 +131,8 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   useEffect(() => {
     if (qrModalAberto) {
       setScannerLoading(true)
-      const iniciarScanner = () => {
+
+      const iniciarScanner = async () => {
         const element = document.getElementById(qrCodeRegionId)
         if (!element) {
           toast.error("Erro ao preparar o scanner.")
@@ -374,35 +144,52 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
           html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
         }
 
-        html5QrCodeRef.current
-          .start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, handleQRCodeRead)
-          .then(() => setScannerLoading(false))
-          .catch((err) => {
-            console.error("Erro ao iniciar scanner:", err)
+        try {
+          await html5QrCodeRef.current.start(
+            { facingMode: { exact: "environment" } },
+            { fps: 10, qrbox: 250 },
+            handleQRCodeRead
+          )
+          setScannerLoading(false)
+        } catch (errEnv) {
+          try {
+            await html5QrCodeRef.current.start(
+              { facingMode: "user" },
+              { fps: 10, qrbox: 250 },
+              handleQRCodeRead
+            )
+            setScannerLoading(false)
+          } catch (errUser) {
+            console.error("Erro ao iniciar scanner:", errUser)
             setScannerLoading(false)
             toast.error("Erro ao iniciar câmera.")
             setQrModalAberto(false)
-          })
+          }
+        }
       }
 
       const timer = setTimeout(iniciarScanner, 300)
       return () => clearTimeout(timer)
     } else {
       if (html5QrCodeRef.current) {
-        html5QrCodeRef.current
-          .stop()
-          .then(() => html5QrCodeRef.current.clear())
-          .catch((err) => console.error("Erro ao parar scanner:", err))
+        const estado = html5QrCodeRef.current.getState?.() ?? 0
+        if (estado === 2) {
+          html5QrCodeRef.current
+            .stop()
+            .then(() => html5QrCodeRef.current.clear())
+            .catch((err) => console.error("Erro ao parar scanner:", err))
+        }
         html5QrCodeRef.current = null
       }
       setScannerLoading(false)
     }
   }, [qrModalAberto])
 
-  // Correções adicionadas:
+  // Dados para estatísticas
   const totalConvites = convites.length
   const totalPresentes = convites.filter((c) => c.status === "convidado presente").length
 
+  // Filtro simples de pesquisa
   const convitesFiltrados = convites.filter((convite) => {
     const termo = filtro.toLowerCase()
     return (
@@ -428,7 +215,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       </CardContent>
     </Card>
   )
-
 
   return (
     <>
@@ -673,59 +459,55 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       <span className="text-gray-700">{conviteSelecionado.comprador?.email}</span>
                     </div>
 
-                    <div className="flex items-center">
-                      <CreditCard className="w-5 h-5 text-gray-500 mr-3" />
-                      <span className="text-gray-700">{conviteSelecionado.comprador?.cpf}</span>
-                    </div>
-
-                    {conviteSelecionado.convidado?.nome && (
-                      <div className="pt-3 border-t border-gray-200">
-                        <div className="flex items-center">
-                          <Users className="w-5 h-5 text-gray-500 mr-3" />
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}
-                            </p>
-                            <p className="text-sm text-gray-600">Acompanhante</p>
-                          </div>
-                        </div>
+                    {conviteSelecionado.comprador?.cpf && (
+                      <div className="flex items-center">
+                        <CreditCard className="w-5 h-5 text-gray-500 mr-3" />
+                        <span className="text-gray-700">{conviteSelecionado.comprador.cpf}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <span className="font-medium text-gray-700">Status atual:</span>
-                    <Badge
-                      className={
-                        conviteSelecionado.status === "convidado presente"
-                          ? "bg-green-100 text-green-800 border-green-200"
-                          : "bg-orange-100 text-orange-800 border-orange-200"
-                      }
-                    >
-                      {conviteSelecionado.status === "convidado presente" ? (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Presente
-                        </>
-                      ) : (
-                        <>
-                          <Clock className="w-4 h-4 mr-1" />
-                          Pendente
-                        </>
-                      )}
-                    </Badge>
-                  </div>
+                  {conviteSelecionado.convidado?.nome && (
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                      <div className="flex items-center">
+                        <Users className="w-5 h-5 text-gray-500 mr-3" />
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}
+                          </p>
+                          <p className="text-sm text-gray-600">Acompanhante</p>
+                        </div>
+                      </div>
 
-                  {conviteSelecionado.status !== "convidado presente" && (
-                    <Button
-                      className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                      onClick={() => validarConvite(conviteSelecionado.id)}
-                      size="lg"
-                    >
-                      <CheckCircle2 className="w-5 h-5 mr-2" />
-                      Confirmar Presença
-                    </Button>
+                      <div className="flex items-center">
+                        <Mail className="w-5 h-5 text-gray-500 mr-3" />
+                        <span className="text-gray-700">{conviteSelecionado.convidado?.email}</span>
+                      </div>
+
+                      {conviteSelecionado.convidado?.cpf && (
+                        <div className="flex items-center">
+                          <CreditCard className="w-5 h-5 text-gray-500 mr-3" />
+                          <span className="text-gray-700">{conviteSelecionado.convidado.cpf}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
+
+                  <div className="flex justify-end gap-3">
+                    {conviteSelecionado.status !== "convidado presente" && (
+                      <Button
+                        onClick={() => validarConvite(conviteSelecionado.id)}
+                        variant="default"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Confirmar Presença
+                      </Button>
+                    )}
+
+                    <Button onClick={() => setModalDetalhesAberto(false)} variant="ghost">
+                      Fechar
+                    </Button>
+                  </div>
                 </div>
               )}
             </DialogContent>
