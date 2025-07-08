@@ -1,35 +1,49 @@
 import { useState, useRef } from "react"
-import { dbRealtime } from "../../firebase"
 import { ref, push, set } from "firebase/database"
-import QRCodeReact from "react-qr-code"   // componente React para renderizar QR no DOM
-import QRCode from "qrcode"                // biblioteca para gerar QR base64 para PDF
+import { dbRealtime } from "../../firebase"
+// import QRCode from "qrcode.react" // npm install qrcode.react
+import { QRCodeCanvas } from "qrcode.react"
+
 import { jsPDF } from "jspdf"
-import html2canvas from "html2canvas"
 import {
-  Ticket, User, Mail, CreditCard, UserPlus, Download,
-  CheckCircle, AlertCircle, Loader2, QrCode,
-  Copy, RotateCcw, ImageIcon, Share2
+  Ticket,
+  User,
+  Mail,
+  CreditCard,
+  UserPlus,
+  Download,
+  AlertCircle,
+  Loader2,
+  Copy,
+  RotateCcw,
+  ImageIcon,
 } from "lucide-react"
-import { Link } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 
-export default function ReservaConvite() {
+export default function ReservaConvite({ evento }) {
   const [form, setForm] = useState({
-    nome: "", sobrenome: "", email: "", cpf: "",
-    convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+    nome: "",
+    sobrenome: "",
+    telefone: "",
+    cpf: "",
+    convidadoNome: "",
+    convidadoSobrenome: "",
+    convidadoEmail: "",
+    convidadoCPF: "",
   })
-  const [eventoInfo, setEventoInfo] = useState({
-    nomeEvento: "", dataEvento: "", localEvento: "", imagem: null, imagemURL: "",
-  })
+
+  const [imagemBase64, setImagemBase64] = useState(null)
   const [qrCodeValue, setQrCodeValue] = useState(null)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [success, setSuccess] = useState(false)
-  const conviteRef = useRef(null)
+
+  // Ref para pegar o SVG do QR Code para baixar PNG
+  const qrRef = useRef(null)
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -40,7 +54,11 @@ export default function ReservaConvite() {
   function handleImagemChange(e) {
     const file = e.target.files[0]
     if (file) {
-      setEventoInfo((prev) => ({ ...prev, imagem: file, imagemURL: URL.createObjectURL(file) }))
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagemBase64(reader.result)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -48,53 +66,122 @@ export default function ReservaConvite() {
     const newErrors = {}
     if (!form.nome.trim()) newErrors.nome = "Nome é obrigatório"
     if (!form.sobrenome.trim()) newErrors.sobrenome = "Sobrenome é obrigatório"
-    if (!form.email.trim()) newErrors.email = "E-mail é obrigatório"
-    else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = "E-mail inválido"
+    if (!form.telefone.trim()) newErrors.telefone = "Telefone é obrigatório"
+    else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.telefone = "E-mail inválido"
     if (!form.cpf.trim()) newErrors.cpf = "CPF é obrigatório"
-    else if (!/^\d{11}$/.test(form.cpf.replace(/\D/g, ""))) newErrors.cpf = "CPF deve ter 11 dígitos"
-    if (form.convidadoEmail && !/\S+@\S+\.\S+/.test(form.convidadoEmail)) newErrors.convidadoEmail = "E-mail do convidado inválido"
-    if (form.convidadoCPF && !/^\d{11}$/.test(form.convidadoCPF.replace(/\D/g, ""))) newErrors.convidadoCPF = "CPF do convidado deve ter 11 dígitos"
+    else if (!/^\d{11}$/.test(form.cpf.replace(/\D/g, "")))
+      newErrors.cpf = "CPF deve ter 11 dígitos"
+    if (form.convidadoTelefone && !/\S+@\S+\.\S+/.test(form.convidadoTelefone))
+      newErrors.convidadoTelefone = "Telefone do convidado inválido"
+    if (form.convidadoCPF && !/^\d{11}$/.test(form.convidadoCPF.replace(/\D/g, "")))
+      newErrors.convidadoCPF = "CPF do convidado deve ter 11 dígitos"
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
+  // async function handleSubmit(e) {
+  //   e.preventDefault()
+  //   setLoading(true)
+  //   setSuccess(false)
+  //   if (!validateForm()) {
+  //     setLoading(false)
+  //     return
+  //   }
+
+  //   try {
+  //     const conviteRefDb = ref(dbRealtime, `eventos/${evento?.id || "geral"}`)
+  //     const newConviteRef = push(conviteRefDb)
+  //     const conviteId = newConviteRef.key
+
+  //     const conviteData = {
+  //       comprador: { ...form },
+  //       convidado: {
+  //         nome: form.convidadoNome || null,
+  //         sobrenome: form.convidadoSobrenome || null,
+  //         email: form.convidadoEmail || null,
+  //         cpf: form.convidadoCPF || null,
+  //       },
+  //       evento: {
+  //         nomeEvento: evento?.nome || "",
+  //         dataEvento: evento?.data || "",
+  //         localEvento: evento?.local || "",
+  //         imagemBase64: imagemBase64 || evento?.imagemBase64 || null,
+  //         imagemURL: evento?.imagemURL || null,
+  //       },
+  //       status: "Convidado não presente",
+  //       criadoEm: new Date().toISOString(),
+  //     }
+
+  //     await set(newConviteRef, conviteData)
+  //     setQrCodeValue(conviteId)
+  //     setSuccess(true)
+
+  //     setTimeout(() => gerarPDF(conviteId, conviteData), 500)
+  //   } catch (error) {
+  //     setErrors({ submit: "Erro ao reservar convite: " + error.message })
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
+
   async function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
-    setSuccess(false)
-    if (!validateForm()) { setLoading(false); return }
+  e.preventDefault()
+  setLoading(true)
+  setSuccess(false)
 
-    try {
-      const conviteRefDb = ref(dbRealtime, "convites")
-      const newConviteRef = push(conviteRefDb)
-      const conviteId = newConviteRef.key
-
-      const conviteData = {
-        comprador: { ...form },
-        convidado: {
-          nome: form.convidadoNome || null,
-          sobrenome: form.convidadoSobrenome || null,
-          email: form.convidadoEmail || null,
-          cpf: form.convidadoCPF || null
-        },
-        evento: { ...eventoInfo, imagem: null },
-        status: "Convidado Pendente",
-        criadoEm: new Date().toISOString(),
-      }
-
-      await set(newConviteRef, conviteData)
-      setQrCodeValue(conviteId)
-      setSuccess(true)
-    } catch (error) {
-      setErrors({ submit: "Erro ao reservar convite: " + error.message })
-    } finally {
-      setLoading(false)
-    }
+  if (!validateForm()) {
+    setLoading(false)
+    return
   }
 
+  try {
+    const conviteRefDb = ref(dbRealtime, `convites/${evento?.id || "geral"}`)
+    const newConviteRef = push(conviteRefDb)
+    const conviteId = newConviteRef.key
+
+    const conviteData = {
+      comprador: { ...form },
+      convidado: {
+        nome: form.convidadoNome || null,
+        sobrenome: form.convidadoSobrenome || null,
+        telefone: form.convidadoTelefone || null,
+        cpf: form.convidadoCPF || null,
+      },
+      evento: {
+        nomeEvento: evento?.nomeEvento || "",
+        dataEvento: evento?.dataEvento || "",
+        localEvento: evento?.localEvento || "",
+        imagemBase64: imagemBase64 || evento?.imagemBase64 || null,
+        imagemURL: evento?.imagemURL || null,
+      },
+      status: "Convidado não presente",
+      criadoEm: new Date().toISOString(),
+    }
+
+    await set(newConviteRef, conviteData)
+    setQrCodeValue(conviteId)
+    setSuccess(true)
+
+    setTimeout(() => gerarPDF(conviteId, conviteData), 500)  // chama o PDF gerado
+  } catch (error) {
+    setErrors({ submit: "Erro ao reservar convite: " + error.message })
+  } finally {
+    setLoading(false)
+  }
+}
+
   function resetForm() {
-    setForm({ nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "" })
-    setEventoInfo({ nomeEvento: "", dataEvento: "", localEvento: "", imagem: null, imagemURL: "" })
+    setForm({
+      nome: "",
+      sobrenome: "",
+      telefone: "",
+      cpf: "",
+      convidadoNome: "",
+      convidadoSobrenome: "",
+      convidadoTelefone: "",
+      convidadoCPF: "",
+    })
+    setImagemBase64(null)
     setQrCodeValue(null)
     setErrors({})
     setSuccess(false)
@@ -104,66 +191,8 @@ export default function ReservaConvite() {
     if (qrCodeValue) navigator.clipboard.writeText(qrCodeValue)
   }
 
-  function downloadQRCode() {
-    const svg = document.getElementById("qr-code-svg")
-    const svgData = new XMLSerializer().serializeToString(svg)
-    const canvas = document.createElement("canvas")
-    const ctx = canvas.getContext("2d")
-    const img = new Image()
-    img.onload = () => {
-      const padding = 20
-      canvas.width = img.width + padding * 2
-      canvas.height = img.height + padding * 2
-      ctx.fillStyle = "white"
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(img, padding, padding)
-      const pngFile = canvas.toDataURL("image/png")
-      const downloadLink = document.createElement("a")
-      downloadLink.download = `convite-${qrCodeValue}.png`
-      downloadLink.href = pngFile
-      downloadLink.click()
-    }
-    img.src = "data:image/svg+xml;base64," + btoa(svgData)
-  }
-
-
-
-// Função utilitária para carregar imagem base64 a partir de URL local
-async function getImageDataUrl(url) {
-  try {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
-
-// Função para formatar a data no formato "07 de Julho de 2025"
-function formatarData(dataStr) {
-  if (!dataStr) return "Data não definida";
-
-  const meses = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
-
-  const data = new Date(dataStr);
-  if (isNaN(data)) return dataStr; // caso não consiga converter, retorna original
-
-  const dia = data.getDate();
-  const mes = meses[data.getMonth()];
-  const ano = data.getFullYear();
-
-  return `${dia.toString().padStart(2, '0')} de ${mes} de ${ano}`;
-}
-
-async function gerarPDF() {
-  if (!qrCodeValue) return alert("Convite não gerado ainda!");
+async function gerarPDF(conviteId, conviteData) {
+  if (!conviteId) return alert("Convite não gerado ainda!");
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -175,21 +204,31 @@ async function gerarPDF() {
   doc.setFillColor("#003885");
   doc.rect(0, 0, 210, 297, "F");
 
-  // Imagem topo, se houver
-  if (eventoInfo.imagemURL) {
-    const imgData = await getImageDataUrl(eventoInfo.imagemURL);
-    if (imgData) {
-      doc.addImage(imgData, "JPEG", 15, 15, 180, 90);
+  // Função para formatar data (exemplo simples)
+  function formatarData(dataStr) {
+    if (!dataStr) return "Data não definida";
+    const d = new Date(dataStr);
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  }
 
+  // Adiciona imagem do evento, se houver imagemBase64 ou URL
+  if (conviteData.evento.imagemBase64 || conviteData.evento.imagemURL) {
+    // Se tiver base64, usa ele, senão carrega via URL
+    const imgSrc = conviteData.evento.imagemBase64 || await getImageDataUrl(conviteData.evento.imagemURL);
+    if (imgSrc) {
+      // Ajusta altura 90mm, largura 180mm
+      doc.addImage(imgSrc, "JPEG", 15, 15, 180, 90);
     }
   }
 
-  // Gerar QR Codes
-  const qrComprador = await QRCode.toDataURL(`comprador-${qrCodeValue}`, { width: 150 });
+  // Gera QR Codes usando biblioteca 'qrcode' dinamicamente importada
+  const QRCodeLib = await import("qrcode");
+  const qrComprador = await QRCodeLib.toDataURL(`comprador-${conviteId}`, { width: 150 });
+
   let qrConvidado = null;
-  const temConvidado = !!form.convidadoNome?.trim();
+  const temConvidado = !!(conviteData.convidado?.nome?.trim());
   if (temConvidado) {
-    qrConvidado = await QRCode.toDataURL(`convidado-${qrCodeValue}`, { width: 150 });
+    qrConvidado = await QRCodeLib.toDataURL(`convidado-${conviteId}`, { width: 150 });
   }
 
   // Função para desenhar QR Code com borda branca
@@ -200,13 +239,12 @@ async function gerarPDF() {
     doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4);
   }
 
-  // Espaçamento e alinhamento para informações do QR Code
   const leftX = 25;
   const rightX = 130;
-  const qrSize = 40;       // tamanho menor do QR Code
-  const startY = 110;      // nova posição vertical (descida)
+  const qrSize = 40;
+  const startY = 110;
 
-  // --- QR Comprador e suas informações ---
+  // --- QR Comprador e informações ---
   drawQrCode(leftX, startY, qrSize, qrComprador);
 
   doc.setTextColor(255, 255, 255);
@@ -215,18 +253,18 @@ async function gerarPDF() {
   doc.text("Comprador:", leftX, startY + qrSize + 10);
 
   doc.setFontSize(14);
-  doc.text(form.nome, leftX, startY + qrSize + 18);
+  doc.text(conviteData.comprador.nome || "", leftX, startY + qrSize + 18);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
-  doc.text(`CPF: ${form.cpf}`, leftX, startY + qrSize + 26);
-  doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34);
+  doc.text(`CPF: ${conviteData.comprador.cpf || ""}`, leftX, startY + qrSize + 26);
+  doc.text(`Código: ${conviteId}`, leftX, startY + qrSize + 34);
 
   doc.setFontSize(12);
-  doc.setTextColor(temConvidado ? '#FF99CC' : '#CCCCCC');
+  doc.setTextColor(temConvidado ? "#FF99CC" : "#CCCCCC");
   doc.text(temConvidado ? "Com convidado" : "Sem convidado", leftX, startY + qrSize + 42);
 
-  // --- QR Convidado e suas informações (se houver) ---
+  // --- QR Convidado e informações (se existir) ---
   if (temConvidado && qrConvidado) {
     drawQrCode(rightX, startY, qrSize, qrConvidado);
 
@@ -236,18 +274,18 @@ async function gerarPDF() {
     doc.text("Convidado:", rightX, startY + qrSize + 10);
 
     doc.setFontSize(14);
-    doc.text(form.convidadoNome, rightX, startY + qrSize + 18);
-
     doc.setFont("helvetica", "normal");
+    doc.text(conviteData.convidado.nome || "", rightX, startY + qrSize + 18);
+
     doc.setFontSize(12);
-    doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, rightX, startY + qrSize + 26);
+    doc.text(`CPF: ${conviteData.convidado.cpf || "N/A"}`, rightX, startY + qrSize + 26);
   }
 
-  // Informações centrais do evento (descidas para y maiores)
+  // Informações centrais do evento
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.setTextColor("#FFCCFF"); // cor clara para contraste com fundo azul escuro
-  doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" });
+  doc.setTextColor("#FFCCFF");
+  doc.text(formatarData(conviteData.evento?.dataEvento), 105, 220, { align: "center" });
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "normal");
@@ -257,7 +295,7 @@ async function gerarPDF() {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor("#FF99CC");
-  doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" });
+  doc.text(`Local: ${conviteData.evento?.localEvento || "A definir"}`, 105, 255, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
@@ -275,311 +313,360 @@ async function gerarPDF() {
   doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
 
   // Salvar PDF
-  doc.save(`Convite - ${form.nome} ${form.sobrenome}.pdf`);
+  doc.save(`Convite - ${conviteData.comprador.nome} ${conviteData.comprador.sobrenome}.pdf`);
 }
 
+// Auxiliar para carregar imagem via URL e converter em base64 (para usar no jsPDF)
+async function getImageDataUrl(url) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
 
+  function downloadQRCode() {
+    const svg = qrRef.current?.querySelector("svg")
+    if (!svg) return
 
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const canvas = document.createElement("canvas")
+    const ctx = canvas.getContext("2d")
+    const img = new Image()
 
-  if (success && qrCodeValue) {
-    return (
-      <div className="min-h-screen bg-white p-4">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div ref={conviteRef} className="bg-white p-4 rounded-xl shadow-xl space-y-6" style={{ backgroundColor: "#ffffff" }}>
-            <Card className="border-0">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl font-bold text-green-800">Convite Reservado!</CardTitle>
-              </CardHeader>
-            </Card>
-            {eventoInfo.imagemURL && (
-              <img src={eventoInfo.imagemURL} alt="Banner" className="rounded-lg mx-auto max-h-64 object-contain" />
-            )}
-            <div className="text-center text-gray-800">
-              <p><strong>Evento:</strong> {eventoInfo.nomeEvento}</p>
-              <p><strong>Data:</strong> {eventoInfo.dataEvento}</p>
-              <p><strong>Local:</strong> {eventoInfo.localEvento}</p>
-            </div>
-            <div className="flex justify-center">
-              <QRCodeReact id="qr-code-svg" value={qrCodeValue} size={200} />
-            </div>
-            <p className="text-sm text-center text-gray-600">Apresente este QR Code no evento para validar sua entrada</p>
-          </div>
+    img.onload = () => {
+      const padding = 20
+      canvas.width = img.width + padding * 2
+      canvas.height = img.height + padding * 2
+      ctx.fillStyle = "white"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, padding, padding)
+      const pngFile = canvas.toDataURL("image/png")
+      const downloadLink = document.createElement("a")
+      downloadLink.download = `convite-${qrCodeValue}.png`
+      downloadLink.href = pngFile
+      downloadLink.click()
+    }
 
-          <div className="flex flex-wrap gap-2 justify-center">
-            <Button onClick={copyQRCodeId} variant="outline" size="sm"><Copy className="h-4 w-4 mr-2" />Copiar ID</Button>
-            <Button onClick={downloadQRCode} variant="outline" size="sm"><Download className="h-4 w-4 mr-2" />Baixar QR Code</Button>
-            <Button onClick={gerarPDF} variant="outline" size="sm"><Download className="h-4 w-4 mr-2" />Baixar PDF do Convite</Button>
-            <Button onClick={resetForm} variant="outline" size="sm"><RotateCcw className="h-4 w-4 mr-2" />Nova Reserva</Button>
-          </div>
-        </div>
-      </div>
-    )
+    img.onerror = () => alert("Erro ao gerar imagem do QR Code")
+    img.src = "data:image/svg+xml;base64," + btoa(svgData)
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Ticket className="h-6 w-6 text-blue-600" />
-              <CardTitle className="text-2xl font-bold text-gray-800">Reserva de Convite</CardTitle>
+        {!success && (
+          <>
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Ticket className="h-6 w-6 text-blue-600" />
+                  <CardTitle className="text-2xl font-bold text-gray-800">
+                    Reserva de Convite
+                  </CardTitle>
+                </div>
+                <p className="text-gray-600">Preencha os dados para gerar seu convite</p>
+              </CardHeader>
+            </Card>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Dados do Comprador */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <User className="h-5 w-5 text-blue-600" />
+                    Dados do Comprador
+                    <Badge variant="destructive" className="text-xs">
+                      Obrigatório
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nome">Nome *</Label>
+                      <Input
+                        id="nome"
+                        name="nome"
+                        type="text"
+                        placeholder="Digite seu nome"
+                        value={form.nome}
+                        onChange={handleChange}
+                        className={errors.nome ? "border-red-500" : ""}
+                      />
+                      {errors.nome && (
+                        <p className="text-sm text-red-600 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.nome}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sobrenome">Sobrenome *</Label>
+                      <Input
+                        id="sobrenome"
+                        name="sobrenome"
+                        type="text"
+                        placeholder="Digite seu sobrenome"
+                        value={form.sobrenome}
+                        onChange={handleChange}
+                        className={errors.sobrenome ? "border-red-500" : ""}
+                      />
+                      {errors.sobrenome && (
+                        <p className="text-sm text-red-600 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.sobrenome}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      WhatsApp *
+                    </Label>
+                    <Input
+                      id="telefone"
+                      name="tel"
+                      type="tel"
+                      placeholder="Informe seu WhatsApp"
+                      value={form.telefone}
+                      onChange={handleChange}
+                      className={errors.telefone ? "border-red-500" : ""}
+                    />
+                    {errors.telefone && (
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errors.telefone}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cpf" className="flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      CPF *
+                    </Label>
+                    <Input
+                      id="cpf"
+                      name="cpf"
+                      type="text"
+                      maxLength={11}
+                      placeholder="Digite seu CPF (somente números)"
+                      value={form.cpf}
+                      onChange={handleChange}
+                      className={errors.cpf ? "border-red-500" : ""}
+                    />
+                    {errors.cpf && (
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errors.cpf}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Dados do Convidado (Opcional) */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <UserPlus className="h-5 w-5 text-purple-600" />
+                    Dados do Convidado (Opcional)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="convidadoNome">Nome</Label>
+                      <Input
+                        id="convidadoNome"
+                        name="convidadoNome"
+                        type="text"
+                        placeholder="Nome do convidado"
+                        value={form.convidadoNome}
+                        onChange={handleChange}
+                        className={errors.convidadoNome ? "border-red-500" : ""}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="convidadoSobrenome">Sobrenome</Label>
+                      <Input
+                        id="convidadoSobrenome"
+                        name="convidadoSobrenome"
+                        type="text"
+                        placeholder="Sobrenome do convidado"
+                        value={form.convidadoSobrenome}
+                        onChange={handleChange}
+                        className={errors.convidadoSobrenome ? "border-red-500" : ""}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="convidadoTelefone" className="flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      Telefone
+                    </Label>
+                    <Input
+                      id="convidadoTelefone"
+                      name="convidadoTelefone"
+                      type="tel"
+                      placeholder="Informe seu WhatsApp do convidado"
+                      value={form.convidadoTelefone}
+                      onChange={handleChange}
+                      className={errors.convidadoTelefone ? "border-red-500" : ""}
+                    />
+                    {errors.convidadoTelefone && (
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errors.convidadoTelefone}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="convidadoCPF" className="flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      CPF
+                    </Label>
+                    <Input
+                      id="convidadoCPF"
+                      name="convidadoCPF"
+                      type="text"
+                      maxLength={11}
+                      placeholder="CPF do convidado"
+                      value={form.convidadoCPF}
+                      onChange={handleChange}
+                      className={errors.convidadoCPF ? "border-red-500" : ""}
+                    />
+                    {errors.convidadoCPF && (
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errors.convidadoCPF}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Upload da Imagem do Evento */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ImageIcon className="h-5 w-5 text-green-600" />
+                    Imagem do Evento (opcional)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImagemChange}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {(imagemBase64 || evento?.imagemURL) && (
+                    <img
+                      src={imagemBase64 || evento?.imagemURL}
+                      alt="Banner do Evento"
+                      className="mt-4 rounded-lg max-h-40 mx-auto object-contain"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              {errors.submit && (
+                <p className="text-center text-red-700 font-semibold">{errors.submit}</p>
+              )}
+
+              {/* Botões */}
+              <div className="flex justify-center gap-4">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <Ticket className="h-5 w-5" />}
+                  Reservar Convite
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <RotateCcw className="h-5 w-5" />
+                  Limpar
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {/* Sucesso e QRCode */}
+        {success && qrCodeValue && (
+          <div className="bg-white p-6 rounded-xl shadow-xl space-y-6 text-center">
+            <Card className="border-0">
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold text-green-800">
+                  Convite Reservado!
+                </CardTitle>
+              </CardHeader>
+            </Card>
+
+            {(imagemBase64 || evento?.imagemURL) && (
+              <img
+                src={imagemBase64 || evento?.imagemURL}
+                alt="Banner do Evento"
+                className="rounded-lg mx-auto max-h-64 object-contain"
+              />
+            )}
+
+            <p>
+              <strong>Evento:</strong> {evento?.nome}
+            </p>
+            <p>
+              <strong>Data:</strong> {evento?.data}
+            </p>
+            <p>
+              <strong>Local:</strong> {evento?.local}
+            </p>
+
+            <div className="flex justify-center" ref={qrRef}>
+            <QRCodeCanvas id="qr-code-svg" value={qrCodeValue} size={200} />
             </div>
-            <p className="text-gray-600">Preencha os dados para gerar seu convite</p>
-          </CardHeader>
-        </Card>
 
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Dados do Comprador */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="h-5 w-5 text-blue-600" />
-                Dados do Comprador
-                <Badge variant="destructive" className="text-xs">
-                  Obrigatório
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nome">Nome *</Label>
-                  <Input
-                    id="nome"
-                    name="nome"
-                    type="text"
-                    placeholder="Digite seu nome"
-                    value={form.nome}
-                    onChange={handleChange}
-                    className={errors.nome ? "border-red-500" : ""}
-                  />
-                  {errors.nome && (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.nome}
-                    </p>
-                  )}
-                </div>
+            <p className="text-sm text-gray-600">
+              Apresente este QR Code no evento para validar sua entrada
+            </p>
 
-                <div className="space-y-2">
-                  <Label htmlFor="sobrenome">Sobrenome *</Label>
-                  <Input
-                    id="sobrenome"
-                    name="sobrenome"
-                    type="text"
-                    placeholder="Digite seu sobrenome"
-                    value={form.sobrenome}
-                    onChange={handleChange}
-                    className={errors.sobrenome ? "border-red-500" : ""}
-                  />
-                  {errors.sobrenome && (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.sobrenome}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  E-mail *
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={form.email}
-                  onChange={handleChange}
-                  className={errors.email ? "border-red-500" : ""}
-                />
-                {errors.email && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.email}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cpf" className="flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" />
-                  CPF *
-                </Label>
-                <Input
-                  id="cpf"
-                  name="cpf"
-                  type="text"
-                  placeholder="000.000.000-00"
-                  value={form.cpf}
-                  onChange={handleChange}
-                  className={errors.cpf ? "border-red-500" : ""}
-                />
-                {errors.cpf && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.cpf}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Dados do Convidado */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <UserPlus className="h-5 w-5 text-green-600" />
-                Dados do Convidado
-                <Badge variant="secondary" className="text-xs">
-                  Opcional
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-gray-600">Preencha apenas se você tem um convidado</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="convidadoNome">Nome</Label>
-                  <Input
-                    id="convidadoNome"
-                    name="convidadoNome"
-                    type="text"
-                    placeholder="Nome do convidado"
-                    value={form.convidadoNome}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="convidadoSobrenome">Sobrenome</Label>
-                  <Input
-                    id="convidadoSobrenome"
-                    name="convidadoSobrenome"
-                    type="text"
-                    placeholder="Sobrenome do convidado"
-                    value={form.convidadoSobrenome}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="convidadoEmail" className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  E-mail
-                </Label>
-                <Input
-                  id="convidadoEmail"
-                  name="convidadoEmail"
-                  type="email"
-                  placeholder="email@convidado.com"
-                  value={form.convidadoEmail}
-                  onChange={handleChange}
-                  className={errors.convidadoEmail ? "border-red-500" : ""}
-                />
-                {errors.convidadoEmail && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.convidadoEmail}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="convidadoCPF" className="flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" />
-                  CPF
-                </Label>
-                <Input
-                  id="convidadoCPF"
-                  name="convidadoCPF"
-                  type="text"
-                  placeholder="000.000.000-00"
-                  value={form.convidadoCPF}
-                  onChange={handleChange}
-                  className={errors.convidadoCPF ? "border-red-500" : ""}
-                />
-                {errors.convidadoCPF && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.convidadoCPF}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Dados do Evento */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ImageIcon className="h-5 w-5 text-indigo-600" />
-                Informações do Evento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nomeEvento">Nome do Evento</Label>
-                <Input
-                  id="nomeEvento"
-                  name="nomeEvento"
-                  type="text"
-                  placeholder="Nome do evento"
-                  value={eventoInfo.nomeEvento}
-                  onChange={(e) => setEventoInfo((prev) => ({ ...prev, nomeEvento: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dataEvento">Data do Evento</Label>
-                <Input
-                  id="dataEvento"
-                  name="dataEvento"
-                  type="date"
-                  value={eventoInfo.dataEvento}
-                  onChange={(e) => setEventoInfo((prev) => ({ ...prev, dataEvento: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="localEvento">Local do Evento</Label>
-                <Input
-                  id="localEvento"
-                  name="localEvento"
-                  type="text"
-                  placeholder="Local do evento"
-                  value={eventoInfo.localEvento}
-                  onChange={(e) => setEventoInfo((prev) => ({ ...prev, localEvento: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="imagemEvento">Imagem do Evento</Label>
-                <input
-                  id="imagemEvento"
-                  name="imagemEvento"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImagemChange}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {errors.submit && (
-            <p className="text-red-600 text-center font-semibold">{errors.submit}</p>
-          )}
-
-          <div className="text-center">
-            <Button type="submit" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
-              Reservar Convite
-            </Button>
+            <div className="flex flex-wrap gap-2 justify-center mt-4">
+              <Button onClick={copyQRCodeId} variant="outline" size="sm" className="flex items-center gap-1">
+                <Copy className="h-4 w-4" />
+                Copiar ID
+              </Button>
+              <Button onClick={downloadQRCode} variant="outline" size="sm" className="flex items-center gap-1">
+                <Download className="h-4 w-4" />
+                Baixar QR Code
+              </Button>
+              <Button onClick={resetForm} variant="outline" size="sm" className="flex items-center gap-1">
+                <RotateCcw className="h-4 w-4" />
+                Nova Reserva
+              </Button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   )

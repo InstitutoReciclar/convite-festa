@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getDatabase } from "firebase/database";
+import { getDatabase, ref, update } from "firebase/database";
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -13,6 +13,7 @@ const firebaseConfig = {
   appId: "1:440872089223:web:767d26c4ac6dd28e612a22",
   measurementId: "G-NN84T7NQX9"
 }
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestoreDB = getFirestore(app);
@@ -25,4 +26,4 @@ isSupported().then(supported => {
   }
 });
 
-export { app, auth, firestoreDB, dbRealtime, analytics };
+export { app, auth, update, firestoreDB, dbRealtime, analytics };

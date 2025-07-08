@@ -1,578 +1,727 @@
+// import React, { useEffect, useState, useRef } from 'react';
+// import { getDatabase, ref, onValue, update } from 'firebase/database';
+// import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+// import { Badge } from '@/components/ui/badge';
+// import { Button } from '@/components/ui/button';
+// import { Card } from '@/components/ui/card';
+
+// import { Html5Qrcode } from "html5-qrcode";
+// import toast, { Toaster } from 'react-hot-toast';
+
+// const VisualizarEventos = ({ idEvento, onVoltar }) => {
+//   const [convites, setConvites] = useState([]);
+//   const [conviteSelecionado, setConviteSelecionado] = useState(null);
+//   const [qrModalAberto, setQrModalAberto] = useState(false);
+//   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
+//   const [scannerLoading, setScannerLoading] = useState(false);
+//   const [filtro, setFiltro] = useState("");
+
+//   const qrCodeRegionId = "html5qr-code-full-region";
+//   const html5QrCodeRef = useRef(null);
+//   const db = getDatabase();
+
+//   useEffect(() => {
+//     if (!idEvento) {
+//       console.warn("idEvento não definido");
+//       return;
+//     }
+
+//     const convitesRef = ref(db, `convites/${idEvento}`);
+//     console.log("Buscando convites no caminho:", `convites/${idEvento}`);
+
+//     const unsubscribe = onValue(convitesRef, (snapshot) => {
+//       const dados = snapshot.val();
+//       console.log("Dados recebidos do banco:", dados);
+
+//       if (!dados || typeof dados !== 'object') {
+//         setConvites([]);
+//         return;
+//       }
+
+//       const lista = Object.entries(dados)
+//         .filter(([_, data]) => typeof data === 'object' && data !== null)
+//         .map(([id, data]) => ({ id, ...data }));
+
+//       setConvites(lista);
+//     }, (error) => {
+//       console.error("Erro ao ler convites:", error);
+//       toast.error("Erro ao ler dados do evento.");
+//       setConvites([]);
+//     });
+
+//     return () => unsubscribe();
+//   }, [db, idEvento]);
+
+//   const validarConvite = (conviteId) => {
+//     update(ref(db, `convites/${idEvento}/${conviteId}`), {
+//       status: 'convidado presente'
+//     }).then(() => {
+//       toast.success("Presença confirmada!");
+//       setModalDetalhesAberto(false);
+//     }).catch((err) => {
+//       toast.error("Erro ao confirmar presença.");
+//     });
+//   };
+
+//   const handleQRCodeRead = (decodedText) => {
+//     const conviteEncontrado = convites.find((c) =>
+//       c.id === decodedText ||
+//       c.comprador?.email === decodedText ||
+//       c.comprador?.cpf === decodedText ||
+//       c.convidado?.email === decodedText ||
+//       c.convidado?.cpf === decodedText
+//     );
+
+//     if (!conviteEncontrado) {
+//       toast.error("Convite não encontrado!");
+//       setQrModalAberto(false);
+//       return;
+//     }
+
+//     if (conviteEncontrado.status === "convidado presente") {
+//       toast.error("Já marcado como presente!");
+//       setQrModalAberto(false);
+//       return;
+//     }
+
+//     update(ref(db, `convites/${idEvento}/${conviteEncontrado.id}`), {
+//       status: "convidado presente"
+//     }).then(() => {
+//       setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" });
+//       setModalDetalhesAberto(true);
+//       setQrModalAberto(false);
+//       if (html5QrCodeRef.current) {
+//         html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear());
+//       }
+//       toast.success("Presença confirmada!");
+//     }).catch(() => toast.error("Erro ao confirmar presença."));
+//   };
+
+//   useEffect(() => {
+//     if (qrModalAberto) {
+//       setScannerLoading(true);
+//       const iniciarScanner = () => {
+//         const element = document.getElementById(qrCodeRegionId);
+//         if (!element) {
+//           toast.error("Erro ao preparar o scanner.");
+//           setQrModalAberto(false);
+//           return;
+//         }
+//         if (!html5QrCodeRef.current) {
+//           html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId);
+//         }
+//         html5QrCodeRef.current.start(
+//           { facingMode: "environment" },
+//           { fps: 10, qrbox: 250 },
+//           handleQRCodeRead
+//         ).then(() => setScannerLoading(false)).catch(() => {
+//           setScannerLoading(false);
+//           toast.error("Erro ao iniciar câmera.");
+//           setQrModalAberto(false);
+//         });
+//       };
+//       const timer = setTimeout(iniciarScanner, 300);
+//       return () => clearTimeout(timer);
+//     } else {
+//       if (html5QrCodeRef.current) {
+//         html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear());
+//         html5QrCodeRef.current = null;
+//       }
+//       setScannerLoading(false);
+//     }
+//   }, [qrModalAberto]);
+
+//   return (
+//     <>
+//       <Toaster position="top-center" />
+//       <div className="max-w-6xl mx-auto p-6 space-y-6">
+//         <Button variant="ghost" onClick={onVoltar}>⬅ Voltar para Evento</Button>
+
+//         <div className="flex justify-between items-center">
+//           <h2 className="text-2xl font-bold text-purple-700">Convidados do Evento</h2>
+//           <Button onClick={() => setQrModalAberto(true)}>📷 Ler QR Code</Button>
+//         </div>
+
+//         <div className="mt-4">
+//           <input
+//             type="text"
+//             placeholder="🔍 Pesquisar por nome, email ou CPF"
+//             value={filtro}
+//             onChange={(e) => setFiltro(e.target.value.toLowerCase())}
+//             className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+//           />
+//         </div>
+
+//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+//           {convites.filter((c) => {
+//             const busca = filtro.toLowerCase();
+//             return (
+//               c.comprador?.nome?.toLowerCase().includes(busca) ||
+//               c.comprador?.sobrenome?.toLowerCase().includes(busca) ||
+//               c.comprador?.email?.toLowerCase().includes(busca) ||
+//               c.comprador?.cpf?.includes(busca) ||
+//               c.convidado?.nome?.toLowerCase().includes(busca) ||
+//               c.convidado?.sobrenome?.toLowerCase().includes(busca)
+//             );
+//           }).map((convite) => (
+//             <Card
+//               key={convite.id}
+//               className="p-4 cursor-pointer border-2 hover:border-purple-500"
+//               onClick={() => {
+//                 setConviteSelecionado(convite);
+//                 setModalDetalhesAberto(true);
+//               }}
+//             >
+//               <h3 className="font-bold text-lg">{convite.comprador?.nome} {convite.comprador?.sobrenome}</h3>
+//               <p className="text-sm text-gray-600">{convite.comprador?.email}</p>
+//               <div className="mt-2">
+//                 <Badge className={
+//                   convite.status === 'convidado presente'
+//                     ? 'bg-green-100 text-green-700'
+//                     : 'bg-gray-100 text-gray-700'
+//                 }>
+//                   {convite.status || 'pendente'}
+//                 </Badge>
+//               </div>
+//             </Card>
+//           ))}
+//         </div>
+
+//         <Dialog open={qrModalAberto} onOpenChange={setQrModalAberto}>
+//           <DialogContent className="max-w-md">
+//             <DialogHeader>
+//               <DialogTitle>Escanear QR Code</DialogTitle>
+//             </DialogHeader>
+//             {scannerLoading && <p className="text-center text-gray-500 mb-2">Carregando câmera...</p>}
+//             <div id={qrCodeRegionId} style={{ width: "100%", minHeight: "300px" }} />
+//           </DialogContent>
+//         </Dialog>
+
+//         <Dialog open={modalDetalhesAberto} onOpenChange={setModalDetalhesAberto}>
+//           <DialogContent className="max-w-lg">
+//             <DialogHeader>
+//               <DialogTitle>Detalhes do Convite</DialogTitle>
+//             </DialogHeader>
+//             {conviteSelecionado && (
+//               <div className="space-y-2">
+//                 <p><strong>Nome:</strong> {conviteSelecionado.comprador?.nome} {conviteSelecionado.comprador?.sobrenome}</p>
+//                 <p><strong>Email:</strong> {conviteSelecionado.comprador?.email}</p>
+//                 <p><strong>CPF:</strong> {conviteSelecionado.comprador?.cpf}</p>
+//                 {conviteSelecionado.convidado?.nome && (
+//                   <p><strong>Convidado:</strong> {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}</p>
+//                 )}
+//                 <p><strong>Status:</strong> {conviteSelecionado.status || 'pendente'}</p>
+//                 {conviteSelecionado.status !== 'convidado presente' && (
+//                   <Button className="mt-4 w-full bg-green-600 text-white hover:bg-green-700" onClick={() => validarConvite(conviteSelecionado.id)}>
+//                     ✅ Marcar como presente
+//                   </Button>
+//                 )}
+//               </div>
+//             )}
+//           </DialogContent>
+//         </Dialog>
+//       </div>
+//     </>
+//   );
+// };
+
+// export default VisualizarEventos;
+
+
+
 "use client"
 
-import { useState, useEffect } from "react"
-import { dbRealtime } from "../../firebase"
-import { ref, onValue, remove } from "firebase/database"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState, useRef } from "react"
+import { getDatabase, ref, onValue, update } from "firebase/database"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Html5Qrcode } from "html5-qrcode"
+import toast, { Toaster } from "react-hot-toast"
 import {
-  Calendar,
-  Clock,
-  MapPin,
-  User,
-  Users,
+  ArrowLeft,
+  QrCode,
   Search,
-  Filter,
-  Eye,
-  Edit,
-  Trash2,
-  PartyPopper,
-  RefreshCw,
-  AlertCircle,
-  CheckCircle,
-  Music,
-  Sparkles,
-  Download,
-  Plus,
-  SortAsc,
-  SortDesc,
+  Users,
+  UserCheck,
+  Clock,
+  Mail,
+  CreditCard,
+  CheckCircle2,
+  Camera,
+  Loader2,
 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
 
-import ReservaConvite from "./reserva" // ajuste o caminho conforme seu projeto
-
-export default function VisualizarEventos() {
-  const router = useNavigate()
-
-  const [eventos, setEventos] = useState([])
-  const [filteredEventos, setFilteredEventos] = useState([])
+const VisualizarEventos = ({ idEvento, onVoltar }) => {
+  const [convites, setConvites] = useState([])
+  const [conviteSelecionado, setConviteSelecionado] = useState(null)
+  const [qrModalAberto, setQrModalAberto] = useState(false)
+  const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false)
+  const [scannerLoading, setScannerLoading] = useState(false)
+  const [filtro, setFiltro] = useState("")
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterType, setFilterType] = useState("todos")
-  const [filterDate, setFilterDate] = useState("todos")
-  const [sortBy, setSortBy] = useState("data")
-  const [sortOrder, setSortOrder] = useState("asc")
-  const [selectedEvento, setSelectedEvento] = useState(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null)
-  const [mostrarGeradorConvite, setMostrarGeradorConvite] = useState(false)
+  const qrCodeRegionId = "html5qr-code-full-region"
+  const html5QrCodeRef = useRef(null)
+  const db = getDatabase()
 
-  const tiposEvento = [
-    { value: "festa", label: "Festa", icon: "🎉", color: "bg-pink-100 text-pink-800 border-pink-200" },
-    { value: "casamento", label: "Casamento", icon: "💒", color: "bg-rose-100 text-rose-800 border-rose-200" },
-    { value: "aniversario", label: "Aniversário", icon: "🎂", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-    { value: "corporativo", label: "Corporativo", icon: "🏢", color: "bg-blue-100 text-blue-800 border-blue-200" },
-    { value: "formatura", label: "Formatura", icon: "🎓", color: "bg-purple-100 text-purple-800 border-purple-200" },
-    { value: "infantil", label: "Infantil", icon: "🎈", color: "bg-green-100 text-green-800 border-green-200" },
-    { value: "outro", label: "Outro", icon: "🎵", color: "bg-gray-100 text-gray-800 border-gray-200" },
-  ]
-
-  // Leitura do Firebase
   useEffect(() => {
-    const eventosRef = ref(dbRealtime, "eventos")
+    if (!idEvento) {
+      console.warn("idEvento não definido")
+      return
+    }
 
-    const listener = onValue(
-      eventosRef,
+    const convitesRef = ref(db, `convites/${idEvento}`)
+    console.log("Buscando convites no caminho:", `convites/${idEvento}`)
+
+    const unsubscribe = onValue(
+      convitesRef,
       (snapshot) => {
-        const data = snapshot.val()
-        if (data) {
-          const lista = Object.entries(data).map(([key, value]) => ({
-            id: key,
-            ...value,
-          }))
-          setEventos(lista)
-          setFilteredEventos(lista)
-        } else {
-          setEventos([])
-          setFilteredEventos([])
+        const dados = snapshot.val()
+        console.log("Dados recebidos do banco:", dados)
+
+        if (!dados || typeof dados !== "object") {
+          setConvites([])
+          setLoading(false)
+          return
         }
+
+        const lista = Object.entries(dados)
+          .filter(([_, data]) => typeof data === "object" && data !== null)
+          .map(([id, data]) => ({ id, ...data }))
+
+        setConvites(lista)
         setLoading(false)
       },
       (error) => {
-        console.error("Erro ao buscar eventos:", error)
+        console.error("Erro ao ler convites:", error)
+        toast.error("Erro ao ler dados do evento.")
+        setConvites([])
         setLoading(false)
       },
     )
 
-    return () => listener()
-  }, [])
+    return () => unsubscribe()
+  }, [db, idEvento])
 
-  // Filtragem e ordenação
-  useEffect(() => {
-    function filterEventos(lista) {
-      return lista.filter((evento) => {
-        if (searchTerm) {
-          const searchLower = searchTerm.toLowerCase()
-          if (
-            !(
-              evento.nomeEvento?.toLowerCase().includes(searchLower) ||
-              evento.responsavel?.toLowerCase().includes(searchLower) ||
-              evento.local?.toLowerCase().includes(searchLower) ||
-              evento.endereco?.toLowerCase().includes(searchLower)
-            )
-          ) {
-            return false
-          }
-        }
-
-        if (filterType !== "todos" && evento.tipoEvento !== filterType) {
-          return false
-        }
-
-        if (filterDate !== "todos") {
-          const hoje = new Date()
-          const amanha = new Date(hoje)
-          amanha.setDate(hoje.getDate() + 1)
-          const proximaSemana = new Date(hoje)
-          proximaSemana.setDate(hoje.getDate() + 7)
-          const proximoMes = new Date(hoje)
-          proximoMes.setMonth(hoje.getMonth() + 1)
-
-          const dataEvento = new Date(evento.data)
-          switch (filterDate) {
-            case "hoje":
-              if (dataEvento.toDateString() !== hoje.toDateString()) return false
-              break
-            case "amanha":
-              if (dataEvento.toDateString() !== amanha.toDateString()) return false
-              break
-            case "semana":
-              if (!(dataEvento >= hoje && dataEvento <= proximaSemana)) return false
-              break
-            case "mes":
-              if (!(dataEvento >= hoje && dataEvento <= proximoMes)) return false
-              break
-            case "passados":
-              if (dataEvento >= hoje) return false
-              break
-          }
-        }
-
-        return true
-      })
-    }
-
-    function sortEventos(lista) {
-      return lista.sort((a, b) => {
-        let aValue, bValue
-
-        switch (sortBy) {
-          case "data":
-            aValue = new Date(a.data + "T" + (a.horaInicio || "00:00"))
-            bValue = new Date(b.data + "T" + (b.horaInicio || "00:00"))
-            break
-          case "nome":
-            aValue = a.nomeEvento?.toLowerCase() || ""
-            bValue = b.nomeEvento?.toLowerCase() || ""
-            break
-          case "tipo":
-            aValue = a.tipoEvento || ""
-            bValue = b.tipoEvento || ""
-            break
-          case "criacao":
-            aValue = new Date(a.criadoEm || 0)
-            bValue = new Date(b.criadoEm || 0)
-            break
-          default:
-            return 0
-        }
-
-        if (aValue < bValue) return sortOrder === "asc" ? -1 : 1
-        if (aValue > bValue) return sortOrder === "asc" ? 1 : -1
-        return 0
-      })
-    }
-
-    const filtrados = filterEventos(eventos)
-    const ordenados = sortEventos(filtrados)
-    setFilteredEventos([...ordenados])
-  }, [eventos, searchTerm, filterType, filterDate, sortBy, sortOrder])
-
-  // Deletar evento
-  async function handleDelete(eventoId) {
-    try {
-      await remove(ref(dbRealtime, `eventos/${eventoId}`))
-      setShowDeleteConfirm(null)
-      if (selectedEvento?.id === eventoId) setSelectedEvento(null)
-    } catch (error) {
-      console.error("Erro ao excluir evento:", error)
-    }
-  }
-
-  // Utils de formatação
-  function formatDate(dateString) {
-    if (!dateString) return ""
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      weekday: "short",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+  const validarConvite = (conviteId) => {
+    update(ref(db, `convites/${idEvento}/${conviteId}`), {
+      status: "convidado presente",
     })
+      .then(() => {
+        toast.success("Presença confirmada!")
+        setModalDetalhesAberto(false)
+      })
+      .catch((err) => {
+        toast.error("Erro ao confirmar presença.")
+      })
   }
 
-  function formatTime(timeString) {
-    if (!timeString) return ""
-    return timeString.substring(0, 5)
-  }
-
-  function getEventStatus(evento) {
-    const hoje = new Date()
-    const dataEvento = new Date(evento.data + "T" + (evento.horaFim || "23:59"))
-    const dataInicio = new Date(evento.data + "T" + (evento.horaInicio || "00:00"))
-
-    if (dataEvento < hoje) {
-      return { status: "finalizado", color: "bg-gray-100 text-gray-800 border-gray-200", label: "Finalizado" }
-    } else if (dataInicio <= hoje && dataEvento >= hoje) {
-      return { status: "andamento", color: "bg-green-100 text-green-800 border-green-200", label: "Em Andamento" }
-    } else {
-      return { status: "agendado", color: "bg-blue-100 text-blue-800 border-blue-200", label: "Agendado" }
-    }
-  }
-
-  function getEventStats() {
-    const total = eventos.length
-    const hoje = new Date()
-    const agendados = eventos.filter((e) => new Date(e.data) >= hoje).length
-    const finalizados = eventos.filter((e) => new Date(e.data) < hoje).length
-    const esteMes = eventos.filter((e) => {
-      const dataEvento = new Date(e.data)
-      return dataEvento.getMonth() === hoje.getMonth() && dataEvento.getFullYear() === hoje.getFullYear()
-    }).length
-
-    return { total, agendados, finalizados, esteMes }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <Card className="border-0 shadow-lg">
-            <CardContent className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <RefreshCw className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
-                <p className="text-lg text-gray-600">Carregando eventos...</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+  const handleQRCodeRead = (decodedText) => {
+    const conviteEncontrado = convites.find(
+      (c) =>
+        c.id === decodedText ||
+        c.comprador?.email === decodedText ||
+        c.comprador?.cpf === decodedText ||
+        c.convidado?.email === decodedText ||
+        c.convidado?.cpf === decodedText,
     )
+
+    if (!conviteEncontrado) {
+      toast.error("Convite não encontrado!")
+      setQrModalAberto(false)
+      return
+    }
+
+    if (conviteEncontrado.status === "convidado presente") {
+      toast.error("Já marcado como presente!")
+      setQrModalAberto(false)
+      return
+    }
+
+    update(ref(db, `convites/${idEvento}/${conviteEncontrado.id}`), {
+      status: "convidado presente",
+    })
+      .then(() => {
+        setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" })
+        setModalDetalhesAberto(true)
+        setQrModalAberto(false)
+        if (html5QrCodeRef.current) {
+          html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear())
+        }
+        toast.success("Presença confirmada!")
+      })
+      .catch(() => toast.error("Erro ao confirmar presença."))
   }
 
-  const stats = getEventStats()
+  useEffect(() => {
+    if (qrModalAberto) {
+      setScannerLoading(true)
+      const iniciarScanner = () => {
+        const element = document.getElementById(qrCodeRegionId)
+        if (!element) {
+          toast.error("Erro ao preparar o scanner.")
+          setQrModalAberto(false)
+          return
+        }
 
-  if (selectedEvento) {
-    const tipoSelecionado = tiposEvento.find((t) => t.value === selectedEvento.tipoEvento)
-    const statusEvento = getEventStatus(selectedEvento)
+        if (!html5QrCodeRef.current) {
+          html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
+        }
 
+        html5QrCodeRef.current
+          .start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, handleQRCodeRead)
+          .then(() => setScannerLoading(false))
+          .catch(() => {
+            setScannerLoading(false)
+            toast.error("Erro ao iniciar câmera.")
+            setQrModalAberto(false)
+          })
+      }
+
+      const timer = setTimeout(iniciarScanner, 300)
+      return () => clearTimeout(timer)
+    } else {
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear())
+        html5QrCodeRef.current = null
+      }
+      setScannerLoading(false)
+    }
+  }, [qrModalAberto])
+
+  const convitesFiltrados = convites.filter((c) => {
+    const busca = filtro.toLowerCase()
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-4">
-        <div className="max-w-4xl mx-auto space-y-6">
+      c.comprador?.nome?.toLowerCase().includes(busca) ||
+      c.comprador?.sobrenome?.toLowerCase().includes(busca) ||
+      c.comprador?.email?.toLowerCase().includes(busca) ||
+      c.comprador?.cpf?.includes(busca) ||
+      c.convidado?.nome?.toLowerCase().includes(busca) ||
+      c.convidado?.sobrenome?.toLowerCase().includes(busca)
+    )
+  })
+
+  const totalPresentes = convites.filter((c) => c.status === "convidado presente").length
+  const totalConvites = convites.length
+
+  const SkeletonCard = () => (
+    <Card className="animate-pulse">
+      <CardHeader className="pb-3">
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+      </CardHeader>
+      <CardContent>
+        <div className="h-6 bg-gray-200 rounded w-20"></div>
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+          },
+        }}
+      />
+
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           {/* Header */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={() => setSelectedEvento(null)}>
-                    ← Voltar
-                  </Button>
+          <div className="mb-8">
+            <Button
+              variant="ghost"
+              onClick={onVoltar}
+              className="mb-6 hover:bg-purple-100 transition-colors duration-200"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar para Evento
+            </Button>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Gerenciar Convidados</h1>
+                <p className="text-gray-600">Visualize e gerencie a presença dos convidados do evento</p>
+              </div>
+
+              <Button
+                onClick={() => setQrModalAberto(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                size="lg"
+              >
+                <QrCode className="w-5 h-5 mr-2" />
+                Escanear QR Code
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-2xl font-bold text-gray-800">Detalhes do Evento</CardTitle>
-                    <p className="text-gray-600">Informações completas</p>
+                    <p className="text-blue-100 text-sm font-medium">Total de Convites</p>
+                    <p className="text-3xl font-bold">{totalConvites}</p>
                   </div>
+                  <Users className="w-8 h-8 text-blue-200" />
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => router.push(`/editarEvento/${selectedEvento.id}`)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Informações do Evento */}
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-8 space-y-6">
-              {/* Header do Evento */}
-              <div className="text-center space-y-4">
-                <div className="flex items-center justify-center gap-4">
-                  {tipoSelecionado && <span className="text-4xl">{tipoSelecionado.icon}</span>}
-                  <h1 className="text-4xl font-bold text-gray-800">{selectedEvento.nomeEvento}</h1>
-                </div>
-
-                <div className="flex items-center justify-center gap-4 flex-wrap">
-                  {tipoSelecionado && (
-                    <Badge className={tipoSelecionado.color + " border"}>{tipoSelecionado.label}</Badge>
-                  )}
-                  <Badge className={statusEvento.color + " border"}>{statusEvento.label}</Badge>
-                </div>
-
-                {selectedEvento.descricao && (
-                  <p className="text-lg text-gray-600 max-w-2xl mx-auto">{selectedEvento.descricao}</p>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Informações Principais */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <Calendar className="h-6 w-6 text-blue-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800">Data e Horário</h3>
-                      <p className="text-gray-600 text-lg">
-                        {new Date(selectedEvento.data).toLocaleDateString("pt-BR", {
-                          weekday: "long",
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                      <p className="text-gray-600">
-                        {formatTime(selectedEvento.horaInicio)} às {formatTime(selectedEvento.horaFim)}
-                      </p>
-                    </div>
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">Presentes</p>
+                    <p className="text-3xl font-bold">{totalPresentes}</p>
                   </div>
-
-                  <div className="flex items-start gap-4">
-                    <User className="h-6 w-6 text-purple-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800">Responsável</h3>
-                      <p className="text-gray-600 text-lg">{selectedEvento.responsavel}</p>
-                      {selectedEvento.telefone && <p className="text-gray-500">{selectedEvento.telefone}</p>}
-                      {selectedEvento.email && <p className="text-gray-500">{selectedEvento.email}</p>}
-                    </div>
-                  </div>
-
-                  {selectedEvento.capacidade && (
-                    <div className="flex items-start gap-4">
-                      <Users className="h-6 w-6 text-green-600 mt-1" />
-                      <div>
-                        <h3 className="font-semibold text-lg text-gray-800">Capacidade</h3>
-                        <p className="text-gray-600 text-lg">{selectedEvento.capacidade} pessoas</p>
-                      </div>
-                    </div>
-                  )}
+                  <UserCheck className="w-8 h-8 text-green-200" />
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <MapPin className="h-6 w-6 text-red-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800">Localização</h3>
-                      <div className="text-gray-600 space-y-1">
-                        <p className="text-lg">
-                          {selectedEvento.endereco}, {selectedEvento.numero}
-                        </p>
-                        <p>{selectedEvento.local}</p>
-                        <p>CEP: {selectedEvento.cep}</p>
-                      </div>
-                    </div>
+            <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-orange-100 text-sm font-medium">Pendentes</p>
+                    <p className="text-3xl font-bold">{totalConvites - totalPresentes}</p>
                   </div>
-
-                  <div className="flex items-start gap-4">
-                    <Clock className="h-6 w-6 text-orange-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800">Criado em</h3>
-                      <p className="text-gray-600">
-                        {new Date(selectedEvento.criadoEm).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ações */}
-              <Separator />
-              <div className="flex justify-center gap-4">
-                <Button className="bg-gradient-to-r from-purple-600 to-blue-600">
-                  <Users className="h-4 w-4 mr-2" />
-                  Gerenciar Convidados
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setMostrarGeradorConvite(!mostrarGeradorConvite)}
-                >
-                  <PartyPopper className="h-4 w-4 mr-2" />
-                  {mostrarGeradorConvite ? "Fechar Convites" : "Gerar Convites"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="text-red-600 hover:text-red-700 bg-transparent"
-                  onClick={() => setShowDeleteConfirm(selectedEvento.id)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir Evento
-                </Button>
-              </div>
-
-              {/* Gerador de convites */}
-              {mostrarGeradorConvite && (
-                <div className="pt-6">
-                  <ReservaConvite eventoSelecionado={selectedEvento} />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Modal de Confirmação de Exclusão */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle className="text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5" />
-                  Confirmar Exclusão
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-gray-600">
-                  Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setShowDeleteConfirm(null)} className="flex-1">
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={() => handleDelete(showDeleteConfirm)}
-                    className="flex-1 bg-red-600 hover:bg-red-700"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </Button>
+                  <Clock className="w-8 h-8 text-orange-200" />
                 </div>
               </CardContent>
             </Card>
           </div>
-        )}
-      </div>
-    )
-  }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Estatísticas */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Eventos Cadastrados</CardTitle>
-            <p className="text-gray-600">Total: {stats.total}</p>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
-            <div className="bg-blue-100 text-blue-800 rounded p-4 shadow">
-              <p className="font-bold text-3xl">{stats.agendados}</p>
-              <p>Agendados</p>
+          {/* Search Bar */}
+          <Card className="mb-6 shadow-sm">
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  type="text"
+                  placeholder="Pesquisar por nome, email ou CPF..."
+                  value={filtro}
+                  onChange={(e) => setFiltro(e.target.value)}
+                  className="pl-10 h-12 text-lg border-gray-200 focus:border-purple-500 focus:ring-purple-500"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Guests Grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
-            <div className="bg-green-100 text-green-800 rounded p-4 shadow">
-              <p className="font-bold text-3xl">{stats.esteMes}</p>
-              <p>Este Mês</p>
-            </div>
-            <div className="bg-gray-100 text-gray-800 rounded p-4 shadow">
-              <p className="font-bold text-3xl">{stats.finalizados}</p>
-              <p>Finalizados</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Filtro e busca */}
-        <div className="flex flex-wrap gap-4 items-center justify-between">
-          <Input
-            placeholder="Buscar por nome, local ou responsável"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-grow max-w-xl"
-            spellCheck={false}
-            autoComplete="off"
-          />
-
-          {/* Filtros */}
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-1"
-          >
-            <option value="todos">Todos os Tipos</option>
-            {tiposEvento.map((tipo) => (
-              <option key={tipo.value} value={tipo.value}>
-                {tipo.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-1"
-          >
-            <option value="todos">Todas as Datas</option>
-            <option value="hoje">Hoje</option>
-            <option value="amanha">Amanhã</option>
-            <option value="semana">Próxima Semana</option>
-            <option value="mes">Próximo Mês</option>
-            <option value="passados">Passados</option>
-          </select>
-
-          {/* Ordenação */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-1"
-          >
-            <option value="data">Ordenar por Data</option>
-            <option value="nome">Ordenar por Nome</option>
-            <option value="tipo">Ordenar por Tipo</option>
-            <option value="criacao">Ordenar por Criação</option>
-          </select>
-
-          <button
-            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            className="px-3 py-1 border rounded border-gray-300"
-            title={`Ordem: ${sortOrder === "asc" ? "Ascendente" : "Descendente"}`}
-          >
-            {sortOrder === "asc" ? <SortAsc className="inline-block w-5 h-5" /> : <SortDesc className="inline-block w-5 h-5" />}
-          </button>
-        </div>
-
-        {/* Lista de Eventos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEventos.length === 0 ? (
-            <p className="text-center col-span-full text-gray-600 mt-12">Nenhum evento encontrado.</p>
+          ) : convitesFiltrados.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                  {filtro ? "Nenhum convite encontrado" : "Nenhum convite cadastrado"}
+                </h3>
+                <p className="text-gray-500">
+                  {filtro ? "Tente ajustar os termos de busca" : "Os convites aparecerão aqui quando forem cadastrados"}
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            filteredEventos.map((evento) => {
-              const tipo = tiposEvento.find((t) => t.value === evento.tipoEvento)
-              const status = getEventStatus(evento)
-
-              return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {convitesFiltrados.map((convite) => (
                 <Card
-                  key={evento.id}
-                  className="border-0 shadow cursor-pointer hover:shadow-lg transition"
-                  onClick={() => setSelectedEvento(evento)}
+                  key={convite.id}
+                  className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 border-2 hover:border-purple-300 group"
+                  onClick={() => {
+                    setConviteSelecionado(convite)
+                    setModalDetalhesAberto(true)
+                  }}
                 >
-                  <CardContent className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg truncate">{evento.nomeEvento}</h3>
-                      {tipo && <Badge className={tipo.color + " border"}>{tipo.label}</Badge>}
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg text-gray-900 group-hover:text-purple-700 transition-colors">
+                          {convite.comprador?.nome} {convite.comprador?.sobrenome}
+                        </h3>
+                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                          <Mail className="w-4 h-4 mr-1" />
+                          {convite.comprador?.email}
+                        </div>
+                        {convite.comprador?.cpf && (
+                          <div className="flex items-center text-sm text-gray-600 mt-1">
+                            <CreditCard className="w-4 h-4 mr-1" />
+                            {convite.comprador?.cpf}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-gray-600">{evento.local}</p>
-                    <p className="text-gray-600 text-sm">{formatDate(evento.data)}</p>
-                    <Badge className={status.color + " border self-start"}>{status.label}</Badge>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        className={
+                          convite.status === "convidado presente"
+                            ? "bg-green-100 text-green-800 border-green-200 hover:bg-green-100"
+                            : "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100"
+                        }
+                      >
+                        {convite.status === "convidado presente" ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Presente
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pendente
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+
+                    {convite.convidado?.nome && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-sm text-gray-600">
+                          <strong>Acompanhante:</strong> {convite.convidado?.nome} {convite.convidado?.sobrenome}
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
-              )
-            })
+              ))}
+            </div>
           )}
+
+          {/* QR Code Modal */}
+          <Dialog open={qrModalAberto} onOpenChange={setQrModalAberto}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center text-xl">
+                  <Camera className="w-6 h-6 mr-2 text-purple-600" />
+                  Escanear QR Code
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {scannerLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-600 mr-3" />
+                    <span className="text-gray-600">Iniciando câmera...</span>
+                  </div>
+                )}
+
+                <div
+                  id={qrCodeRegionId}
+                  className="rounded-lg overflow-hidden border-2 border-gray-200"
+                  style={{ width: "100%", minHeight: "300px" }}
+                />
+
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Dica:</strong> Posicione o QR code dentro da área de escaneamento para validar a presença
+                    automaticamente.
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Details Modal */}
+          <Dialog open={modalDetalhesAberto} onOpenChange={setModalDetalhesAberto}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="text-xl">Detalhes do Convite</DialogTitle>
+              </DialogHeader>
+
+              {conviteSelecionado && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                    <div className="flex items-center">
+                      <Users className="w-5 h-5 text-gray-500 mr-3" />
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {conviteSelecionado.comprador?.nome} {conviteSelecionado.comprador?.sobrenome}
+                        </p>
+                        <p className="text-sm text-gray-600">Comprador principal</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center">
+                      <Mail className="w-5 h-5 text-gray-500 mr-3" />
+                      <span className="text-gray-700">{conviteSelecionado.comprador?.email}</span>
+                    </div>
+
+                    <div className="flex items-center">
+                      <CreditCard className="w-5 h-5 text-gray-500 mr-3" />
+                      <span className="text-gray-700">{conviteSelecionado.comprador?.cpf}</span>
+                    </div>
+
+                    {conviteSelecionado.convidado?.nome && (
+                      <div className="pt-3 border-t border-gray-200">
+                        <div className="flex items-center">
+                          <Users className="w-5 h-5 text-gray-500 mr-3" />
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}
+                            </p>
+                            <p className="text-sm text-gray-600">Acompanhante</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-700">Status atual:</span>
+                    <Badge
+                      className={
+                        conviteSelecionado.status === "convidado presente"
+                          ? "bg-green-100 text-green-800 border-green-200"
+                          : "bg-orange-100 text-orange-800 border-orange-200"
+                      }
+                    >
+                      {conviteSelecionado.status === "convidado presente" ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          Presente
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-4 h-4 mr-1" />
+                          Pendente
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+
+                  {conviteSelecionado.status !== "convidado presente" && (
+                    <Button
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                      onClick={() => validarConvite(conviteSelecionado.id)}
+                      size="lg"
+                    >
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      Confirmar Presença
+                    </Button>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
-    </div>
+    </>
   )
 }
+
+export default VisualizarEventos
