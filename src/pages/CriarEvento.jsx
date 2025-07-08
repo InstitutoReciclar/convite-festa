@@ -16,6 +16,7 @@ import { toast } from "react-toastify"
 import { Html5Qrcode } from "html5-qrcode"
 import { remove } from "firebase/database"
 import VisualizarEventos from './ConsultaEvento'; // ajuste o caminho conforme necessário
+import { v4 as uuidv4 } from "uuid"
 
 
 export default function EventoEConvite() {
@@ -133,26 +134,72 @@ useEffect(() => {
     return Object.keys(newErrors).length === 0
   }
 
-  async function handleSubmitConvite(e) {
-    e.preventDefault(); setLoading(true); setSuccess(false);
-    if (!validateForm()) {setLoading(false); return;}
-    console.log("Dados do evento no convite:", eventoInfo)  // <-- aqui
+  // async function handleSubmitConvite(e) {
+  //   e.preventDefault(); setLoading(true); setSuccess(false);
+  //   if (!validateForm()) {setLoading(false); return;}
+  //   console.log("Dados do evento no convite:", eventoInfo)  // <-- aqui
+  //   try {
+  //     const conviteRefDb = ref(dbRealtime, `convites/${eventoInfo.idEvento}`)
+  //     const newConviteRef = push(conviteRefDb)
+  //     const conviteId = newConviteRef.key
+  //     const conviteData = {
+  //       comprador: { ...form },
+  //       convidado: {nome: form.convidadoNome || null, sobrenome: form.convidadoSobrenome || null, email: form.convidadoEmail || null, cpf: form.convidadoCPF || null,},
+  //       evento: {...eventoInfo, imagem: null, imagemURL: eventoInfo.imagemBase64 || eventoInfo.imagemURL || "",},
+  //       status: "Convidado Pendente",
+  //       criadoEm: new Date().toISOString(),
+  //     }
+  //   await set(newConviteRef, conviteData); setQrCodeValue(conviteId); setSuccess(true);} 
+  //   catch (error) {setErrors({ submit: "Erro ao reservar convite: " + error.message })} 
+  //   finally {setLoading(false)}
+  // }
+
+
+    async function handleSubmitConvite(e) {
+    e.preventDefault();
+    setLoading(true);
+    setSuccess(false);
+    
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const conviteRefDb = ref(dbRealtime, `convites/${eventoInfo.idEvento}`)
-      const newConviteRef = push(conviteRefDb)
-      const conviteId = newConviteRef.key
+      const conviteRefDb = ref(dbRealtime, `convites/${eventoInfo.idEvento}`);
+      const newConviteRef = push(conviteRefDb); // cria um ID para o convite
+      const conviteId = newConviteRef.key;
+
+      // Gerar um ID para o convidado (você pode usar push/ref do firebase ou uuid)
+      const convidadoId = uuidv4(); // exemplo usando uuid, mas pode ser push/ref também
+      
       const conviteData = {
         comprador: { ...form },
-        convidado: {nome: form.convidadoNome || null, sobrenome: form.convidadoSobrenome || null, email: form.convidadoEmail || null, cpf: form.convidadoCPF || null,},
-        evento: {...eventoInfo, imagem: null, imagemURL: eventoInfo.imagemBase64 || eventoInfo.imagemURL || "",},
+        convidado: {
+          id: convidadoId, // aqui o id único do convidado
+          nome: form.convidadoNome || null,
+          sobrenome: form.convidadoSobrenome || null,
+          email: form.convidadoEmail || null,
+          cpf: form.convidadoCPF || null,
+        },
+        evento: {
+          ...eventoInfo,
+          imagem: null,
+          imagemURL: eventoInfo.imagemBase64 || eventoInfo.imagemURL || "",
+        },
         status: "Convidado Pendente",
         criadoEm: new Date().toISOString(),
-      }
-    await set(newConviteRef, conviteData); setQrCodeValue(conviteId); setSuccess(true);} 
-    catch (error) {setErrors({ submit: "Erro ao reservar convite: " + error.message })} 
-    finally {setLoading(false)}
-  }
+      };
 
+      await set(newConviteRef, conviteData);
+      setQrCodeValue(conviteId);
+      setSuccess(true);
+    } catch (error) {
+      setErrors({ submit: "Erro ao reservar convite: " + error.message });
+    } finally {
+      setLoading(false);
+    }
+  }
   function resetForm() {
     setForm({nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",})
     setQrCodeValue(null); setErrors({}); setSuccess(false); setLoading(false);}
@@ -517,11 +564,13 @@ useEffect(() => {
 )}
 
 
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
       <div className="max-w-4xl mx-auto">
         <Button variant="ghost" onClick={() => setEventoSelecionado(null)} className="mb-6 hover:bg-white/50 transition-colors">
-          <RotateCcw className="inline-block mr-2 h-4 w-4" />Voltar para Eventos
+          Voltar para Eventos
         </Button>
 
         <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">

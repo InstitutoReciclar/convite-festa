@@ -230,7 +230,6 @@
 
 
 "use client"
-
 import { useEffect, useState, useRef } from "react"
 import { getDatabase, ref, onValue, update } from "firebase/database"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -264,79 +263,32 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   const [loading, setLoading] = useState(true)
   const qrCodeRegionId = "html5qr-code-full-region"
   const html5QrCodeRef = useRef(null)
+  const ultimaLeituraRef = useRef(0)
+  const TEMPO_ENTRE_LEITURAS = 2000
   const db = getDatabase()
 
-  useEffect(() => {
-    if (!idEvento) {
-      console.warn("idEvento não definido")
-      return
-    }
-
-    const convitesRef = ref(db, `convites/${idEvento}`)
-    console.log("Buscando convites no caminho:", `convites/${idEvento}`)
-
-    const unsubscribe = onValue(
-      convitesRef,
-      (snapshot) => {
-        const dados = snapshot.val()
-        console.log("Dados recebidos do banco:", dados)
-
-        if (!dados || typeof dados !== "object") {
-          setConvites([])
-          setLoading(false)
-          return
-        }
-
-        const lista = Object.entries(dados)
-          .filter(([_, data]) => typeof data === "object" && data !== null)
-          .map(([id, data]) => ({ id, ...data }))
-
-        setConvites(lista)
-        setLoading(false)
-      },
-      (error) => {
-        console.error("Erro ao ler convites:", error)
-        toast.error("Erro ao ler dados do evento.")
-        setConvites([])
-        setLoading(false)
-      },
-    )
-
-    return () => unsubscribe()
-  }, [db, idEvento])
-
-  const validarConvite = (conviteId) => {
-    update(ref(db, `convites/${idEvento}/${conviteId}`), {
-      status: "convidado presente",
-    })
-      .then(() => {
-        toast.success("Presença confirmada!")
-        setModalDetalhesAberto(false)
-      })
-      .catch((err) => {
-        toast.error("Erro ao confirmar presença.")
-      })
-  }
-
   const handleQRCodeRead = (decodedText) => {
+    const agora = Date.now()
+    if (agora - ultimaLeituraRef.current < TEMPO_ENTRE_LEITURAS) return
+    ultimaLeituraRef.current = agora
+
     const conviteEncontrado = convites.find(
       (c) =>
         c.id === decodedText ||
         c.comprador?.email === decodedText ||
         c.comprador?.cpf === decodedText ||
         c.convidado?.email === decodedText ||
-        c.convidado?.cpf === decodedText,
+        c.convidado?.cpf === decodedText ||
+        c.convidado?.id === decodedText
     )
 
     if (!conviteEncontrado) {
       toast.error("Convite não encontrado!")
-      setQrModalAberto(false)
       return
     }
 
     if (conviteEncontrado.status === "convidado presente") {
       toast.error("Já marcado como presente!")
-      setQrModalAberto(false)
       return
     }
 
@@ -347,13 +299,65 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
         setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" })
         setModalDetalhesAberto(true)
         setQrModalAberto(false)
+
         if (html5QrCodeRef.current) {
           html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear())
         }
+
         toast.success("Presença confirmada!")
       })
       .catch(() => toast.error("Erro ao confirmar presença."))
   }
+
+  const validarConvite = (idConvite) => {
+    const conviteEncontrado = convites.find((c) => c.id === idConvite)
+    if (!conviteEncontrado) {
+      toast.error("Convite não encontrado!")
+      return
+    }
+
+    if (conviteEncontrado.status === "convidado presente") {
+      toast.error("Já marcado como presente!")
+      return
+    }
+
+    update(ref(db, `convites/${idEvento}/${idConvite}`), {
+      status: "convidado presente",
+    })
+      .then(() => {
+        setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" })
+        toast.success("Presença confirmada!")
+      })
+      .catch(() => toast.error("Erro ao confirmar presença."))
+  }
+
+  useEffect(() => {
+    if (!idEvento) return
+
+    const convitesRef = ref(db, `convites/${idEvento}`)
+    const unsubscribe = onValue(
+      convitesRef,
+      (snapshot) => {
+        const dados = snapshot.val()
+        if (!dados || typeof dados !== "object") {
+          setConvites([])
+          setLoading(false)
+          return
+        }
+
+        const lista = Object.entries(dados).map(([id, data]) => ({ id, ...data }))
+        setConvites(lista)
+        setLoading(false)
+      },
+      (error) => {
+        toast.error("Erro ao ler dados do evento.")
+        setConvites([])
+        setLoading(false)
+      }
+    )
+
+    return () => unsubscribe()
+  }, [db, idEvento])
 
   useEffect(() => {
     if (qrModalAberto) {
@@ -373,7 +377,8 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
         html5QrCodeRef.current
           .start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, handleQRCodeRead)
           .then(() => setScannerLoading(false))
-          .catch(() => {
+          .catch((err) => {
+            console.error("Erro ao iniciar scanner:", err)
             setScannerLoading(false)
             toast.error("Erro ao iniciar câmera.")
             setQrModalAberto(false)
@@ -384,27 +389,33 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       return () => clearTimeout(timer)
     } else {
       if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear())
+        html5QrCodeRef.current
+          .stop()
+          .then(() => html5QrCodeRef.current.clear())
+          .catch((err) => console.error("Erro ao parar scanner:", err))
         html5QrCodeRef.current = null
       }
       setScannerLoading(false)
     }
   }, [qrModalAberto])
 
-  const convitesFiltrados = convites.filter((c) => {
-    const busca = filtro.toLowerCase()
+  // Correções adicionadas:
+  const totalConvites = convites.length
+  const totalPresentes = convites.filter((c) => c.status === "convidado presente").length
+
+  const convitesFiltrados = convites.filter((convite) => {
+    const termo = filtro.toLowerCase()
     return (
-      c.comprador?.nome?.toLowerCase().includes(busca) ||
-      c.comprador?.sobrenome?.toLowerCase().includes(busca) ||
-      c.comprador?.email?.toLowerCase().includes(busca) ||
-      c.comprador?.cpf?.includes(busca) ||
-      c.convidado?.nome?.toLowerCase().includes(busca) ||
-      c.convidado?.sobrenome?.toLowerCase().includes(busca)
+      convite.comprador?.nome?.toLowerCase().includes(termo) ||
+      convite.comprador?.sobrenome?.toLowerCase().includes(termo) ||
+      convite.comprador?.email?.toLowerCase().includes(termo) ||
+      convite.comprador?.cpf?.toLowerCase().includes(termo) ||
+      convite.convidado?.nome?.toLowerCase().includes(termo) ||
+      convite.convidado?.sobrenome?.toLowerCase().includes(termo) ||
+      convite.convidado?.email?.toLowerCase().includes(termo) ||
+      convite.convidado?.cpf?.toLowerCase().includes(termo)
     )
   })
-
-  const totalPresentes = convites.filter((c) => c.status === "convidado presente").length
-  const totalConvites = convites.length
 
   const SkeletonCard = () => (
     <Card className="animate-pulse">
@@ -417,6 +428,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       </CardContent>
     </Card>
   )
+
 
   return (
     <>
