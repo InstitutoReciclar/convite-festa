@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
-import { ref, push, set, onValue } from "firebase/database"
-import { dbRealtime, update } from "../../firebase"
+import { ref, push, set, onValue, remove } from "firebase/database"
+import { dbRealtime } from "../../firebase"
 import QRCodeReact from "react-qr-code"
 import QRCode from "qrcode"
 import { jsPDF } from "jspdf"
@@ -11,35 +11,37 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import {Calendar, PartyPopper, Save, Ticket, User, UserPlus, Download, Copy, RotateCcw, AlertCircle, Loader2, MapPin, Clock, Users, CheckCircle2, Sparkles, Gift, Camera, QrCode,} from "lucide-react"
+import {
+  Calendar, PartyPopper, Save, Ticket, User, UserPlus, Download, Copy, AlertCircle, Loader2, MapPin, Clock, Users, CheckCircle2, Sparkles, Gift, Camera, QrCode,
+} from "lucide-react"
 import { toast } from "react-toastify"
-import { Html5Qrcode } from "html5-qrcode"
-import { remove } from "firebase/database"
-import VisualizarEventos from './ConsultaEvento'; // ajuste o caminho conforme necessário
+import VisualizarEventos from "./ConsultaEvento"
 import { v4 as uuidv4 } from "uuid"
 
-
 export default function EventoEConvite() {
-  // Estado cadastro evento
-  const [evento, setEvento] = useState({nomeEvento: "", tipoEvento: "festa", data: "", horaInicio: "", horaFim: "", local: "", endereco: "", numero: "", cep: "", responsavel: "",
-    telefone: "", email: "",capacidade: "", descricao: "",})
+  // Estados
+  const [evento, setEvento] = useState({
+    nomeEvento: "", tipoEvento: "festa", data: "", horaInicio: "", horaFim: "", local: "", endereco: "", numero: "", cep: "", responsavel: "",
+    telefone: "", email: "", capacidade: "", descricao: "",
+  })
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState("")
   const [eventosLista, setEventosLista] = useState({})
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
-  const [form, setForm] = useState({nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",})
-  const [eventoInfo, setEventoInfo] = useState({idEvento: "", nomeEvento: "", dataEvento: "", localEvento: "", imagem: null, imagemURL: "", imagemBase64: "",})
+  const [form, setForm] = useState({
+    nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+  })
+  const [eventoInfo, setEventoInfo] = useState({
+    idEvento: "", nomeEvento: "", dataEvento: "", localEvento: "", imagem: null, imagemURL: "", imagemBase64: "",
+  })
   const [qrCodeValue, setQrCodeValue] = useState(null)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [success, setSuccess] = useState(false)
-  const conviteRef = useRef(null)
   const [convitesEvento, setConvitesEvento] = useState({})
   const [visualizandoConvites, setVisualizandoConvites] = useState(false)
 
-
-
-  // Tipos de evento para select cadastro
+  // Tipos de evento
   const tiposEvento = [
     { value: "brunch", label: "Brunch", icon: "☕", color: "bg-pink-500" },
     { value: "corporativo", label: "Corporativo", icon: "🏢", color: "bg-blue-500" },
@@ -47,41 +49,52 @@ export default function EventoEConvite() {
     { value: "outro", label: "Outro", icon: "🎵", color: "bg-gray-500" },
   ]
 
-  // Funções cadastro evento
+  // Cadastro evento
   const handleChangeEvento = (e) => {
-  const { name, value } = e.target; setEvento((prev) => ({ ...prev, [name]: value }))}
+    const { name, value } = e.target
+    setEvento((prev) => ({ ...prev, [name]: value }))
+  }
   const handleSubmitEvento = async (e) => {
-    e.preventDefault(); setSalvando(true); setMensagem("");
+    e.preventDefault()
+    setSalvando(true)
+    setMensagem("")
     try {
       const eventosRef = ref(dbRealtime, "eventos")
-      await push(eventosRef, {...evento,criadoEm: Date.now(),})
+      await push(eventosRef, { ...evento, criadoEm: Date.now() })
       setMensagem("✅ Evento cadastrado com sucesso!")
-      setEvento({nomeEvento: "", tipoEvento: "festa", data: "", horaInicio: "", horaFim: "", local: "", endereco: "", numero: "", cep: "",
-        responsavel: "", telefone: "", email: "", capacidade: "", descricao: "",})} 
-    catch (error) {console.error("Erro ao salvar evento:", error); setMensagem("❌ Erro ao salvar evento.")} 
-    finally {setSalvando(false)}
+      setEvento({
+        nomeEvento: "", tipoEvento: "festa", data: "", horaInicio: "", horaFim: "", local: "", endereco: "", numero: "", cep: "",
+        responsavel: "", telefone: "", email: "", capacidade: "", descricao: "",
+      })
+    } catch (error) {
+      console.error("Erro ao salvar evento:", error)
+      setMensagem("❌ Erro ao salvar evento.")
+    } finally {
+      setSalvando(false)
+    }
   }
 
+  // Excluir convite
   function excluirConvite(conviteId) {
-  if (confirm("Deseja realmente excluir este convite?")) {
-    const conviteRef = ref(dbRealtime, `convites/${eventoSelecionado.id}/${conviteId}`)
-    remove(conviteRef)
-      .then(() => toast.success("Convite excluído com sucesso!"))
-      .catch((err) => toast.error("Erro ao excluir convite: " + err.message))
+    if (window.confirm("Deseja realmente excluir este convite?")) {
+      const conviteRef = ref(dbRealtime, `convites/${eventoSelecionado.id}/${conviteId}`)
+      remove(conviteRef)
+        .then(() => toast.success("Convite excluído com sucesso!"))
+        .catch((err) => toast.error("Erro ao excluir convite: " + err.message))
+    }
   }
-}
 
-  
-useEffect(() => {
-  if (!eventoSelecionado) return
-  const convitesRef = ref(dbRealtime, `convites/${eventoSelecionado.id}`)
-  const unsubscribe = onValue(convitesRef, (snapshot) => {
-    setConvitesEvento(snapshot.val() || {})
-  })
-  return () => unsubscribe()
-}, [eventoSelecionado])
+  // Carregar convites do evento selecionado
+  useEffect(() => {
+    if (!eventoSelecionado) return
+    const convitesRef = ref(dbRealtime, `convites/${eventoSelecionado.id}`)
+    const unsubscribe = onValue(convitesRef, (snapshot) => {
+      setConvitesEvento(snapshot.val() || {})
+    })
+    return () => unsubscribe()
+  }, [eventoSelecionado])
 
-  // Carregar eventos do Firebase em tempo real
+  // Carregar eventos do Firebase
   useEffect(() => {
     const eventosRef = ref(dbRealtime, "eventos")
     return onValue(eventosRef, (snapshot) => {
@@ -90,16 +103,28 @@ useEffect(() => {
     })
   }, [])
 
-  // Selecionar evento para abrir formulário convite
+  // Selecionar evento para convite
   function selecionarEventoParaConvite(id, eventoDados) {
-      console.log("Evento selecionado:", eventoDados)  // <-- aqui
-      setEventoSelecionado({ id, ...eventoDados })
-      setEventoInfo({idEvento: id, nomeEvento: eventoDados.nomeEvento || "", dataEvento: eventoDados.data || eventoDados.dataEvento || "",
-        localEvento: eventoDados.local || eventoDados.endereco || eventoDados.localEvento || "", imagem: null, imagemURL: "",})
-      setForm({nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "", })
-      setQrCodeValue(null); setErrors({}); setSuccess(false); setLoading(false);
+    setEventoSelecionado({ id, ...eventoDados })
+    setEventoInfo({
+      idEvento: id,
+      nomeEvento: eventoDados.nomeEvento || "",
+      dataEvento: eventoDados.data || eventoDados.dataEvento || "",
+      localEvento: eventoDados.local || eventoDados.endereco || eventoDados.localEvento || "",
+      imagem: null,
+      imagemURL: "",
+      imagemBase64: "",
+    })
+    setForm({
+      nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+    })
+    setQrCodeValue(null)
+    setErrors({})
+    setSuccess(false)
+    setLoading(false)
   }
-  // Form convite handlers
+
+  // Form handlers
   function handleChangeConvite(e) {
     const { name, value } = e.target
     setForm((f) => ({ ...f, [name]: value }))
@@ -108,9 +133,17 @@ useEffect(() => {
 
   function handleImagemChange(e) {
     const file = e.target.files[0]
-    if (file) {const reader = new FileReader();
-      reader.onloadend = () => {setEventoInfo((prev) => ({...prev, imagem: file, imagemURL: URL.createObjectURL(file), imagemBase64: reader.result,}))}
-      reader.readAsDataURL(file);
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setEventoInfo((prev) => ({
+          ...prev,
+          imagem: file,
+          imagemURL: URL.createObjectURL(file),
+          imagemBase64: reader.result,
+        }))
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -134,49 +167,23 @@ useEffect(() => {
     return Object.keys(newErrors).length === 0
   }
 
-  // async function handleSubmitConvite(e) {
-  //   e.preventDefault(); setLoading(true); setSuccess(false);
-  //   if (!validateForm()) {setLoading(false); return;}
-  //   console.log("Dados do evento no convite:", eventoInfo)  // <-- aqui
-  //   try {
-  //     const conviteRefDb = ref(dbRealtime, `convites/${eventoInfo.idEvento}`)
-  //     const newConviteRef = push(conviteRefDb)
-  //     const conviteId = newConviteRef.key
-  //     const conviteData = {
-  //       comprador: { ...form },
-  //       convidado: {nome: form.convidadoNome || null, sobrenome: form.convidadoSobrenome || null, email: form.convidadoEmail || null, cpf: form.convidadoCPF || null,},
-  //       evento: {...eventoInfo, imagem: null, imagemURL: eventoInfo.imagemBase64 || eventoInfo.imagemURL || "",},
-  //       status: "Convidado Pendente",
-  //       criadoEm: new Date().toISOString(),
-  //     }
-  //   await set(newConviteRef, conviteData); setQrCodeValue(conviteId); setSuccess(true);} 
-  //   catch (error) {setErrors({ submit: "Erro ao reservar convite: " + error.message })} 
-  //   finally {setLoading(false)}
-  // }
-
-
-    async function handleSubmitConvite(e) {
-    e.preventDefault();
-    setLoading(true);
-    setSuccess(false);
-    
+  async function handleSubmitConvite(e) {
+    e.preventDefault()
+    setLoading(true)
+    setSuccess(false)
     if (!validateForm()) {
-      setLoading(false);
-      return;
+      setLoading(false)
+      return
     }
-    
     try {
-      const conviteRefDb = ref(dbRealtime, `convites/${eventoInfo.idEvento}`);
-      const newConviteRef = push(conviteRefDb); // cria um ID para o convite
-      const conviteId = newConviteRef.key;
-
-      // Gerar um ID para o convidado (você pode usar push/ref do firebase ou uuid)
-      const convidadoId = uuidv4(); // exemplo usando uuid, mas pode ser push/ref também
-      
+      const conviteRefDb = ref(dbRealtime, `convites/${eventoInfo.idEvento}`)
+      const newConviteRef = push(conviteRefDb)
+      const conviteId = newConviteRef.key
+      const convidadoId = uuidv4()
       const conviteData = {
         comprador: { ...form },
         convidado: {
-          id: convidadoId, // aqui o id único do convidado
+          id: convidadoId,
           nome: form.convidadoNome || null,
           sobrenome: form.convidadoSobrenome || null,
           email: form.convidadoEmail || null,
@@ -189,21 +196,31 @@ useEffect(() => {
         },
         status: "Convidado Pendente",
         criadoEm: new Date().toISOString(),
-      };
-
-      await set(newConviteRef, conviteData);
-      setQrCodeValue(conviteId);
-      setSuccess(true);
+      }
+      await set(newConviteRef, conviteData)
+      setQrCodeValue(conviteId)
+      setSuccess(true)
     } catch (error) {
-      setErrors({ submit: "Erro ao reservar convite: " + error.message });
+      setErrors({ submit: "Erro ao reservar convite: " + error.message })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
+
   function resetForm() {
-    setForm({nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",})
-    setQrCodeValue(null); setErrors({}); setSuccess(false); setLoading(false);}
-  function copyQRCodeId() {if (qrCodeValue) navigator.clipboard.writeText(qrCodeValue)}
+    setForm({
+      nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+    })
+    setQrCodeValue(null)
+    setErrors({})
+    setSuccess(false)
+    setLoading(false)
+  }
+
+  function copyQRCodeId() {
+    if (qrCodeValue) navigator.clipboard.writeText(qrCodeValue)
+  }
+
   function downloadQRCode() {
     const svg = document.getElementById("qr-code-svg")
     if (!svg) return
@@ -238,150 +255,131 @@ useEffect(() => {
     return `${dia.toString().padStart(2, "0")} de ${mes} de ${ano}`
   }
 
-  async function getImageDataUrl(url) {
-    try {
-      const response = await fetch(url)
-      const blob = await response.blob()
-      return await new Promise((resolve) => {const reader = new FileReader(); reader.onloadend = () => resolve(reader.result); reader.readAsDataURL(blob);})} 
-    catch {return null}
-  }
-
-  async function gerarPDFComprador() {
-    if (!qrCodeValue) return alert("Convite não gerado ainda!");
-
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    doc.setFillColor("#003885");
-    doc.rect(0, 0, 210, 297, "F");
-
-    if (eventoInfo.imagemURL) {
-      const imgData = await getImageDataUrl(eventoInfo.imagemURL);
-      if (imgData) {
-        doc.addImage(imgData, "JPEG", 15, 15, 180, 90);
-      }
-    }
-
-    const nomeCompletoComprador = `${form.nome} ${form.sobrenome}`;
-    const qrComprador = await QRCode.toDataURL(nomeCompletoComprador);
-
-    function drawQrCode(x, y, size, img) {
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(1);
-      doc.rect(x, y, size, size);
-      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4);
-    }
-
-    const leftX = 25;
-    const qrSize = 40;
-    const startY = 110;
-
-    drawQrCode(leftX, startY, qrSize, qrComprador);
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Comprador:", leftX, startY + qrSize + 10);
-    doc.setFontSize(14);
-    doc.text(nomeCompletoComprador, leftX, startY + qrSize + 18);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(`CPF: ${form.cpf}`, leftX, startY + qrSize + 26);
-    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor("#FFCCFF");
-    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" });
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(255, 255, 255);
-    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" });
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor("#FF99CC");
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(255, 255, 255);
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" });
-    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
-
-    doc.save(`Convite - ${nomeCompletoComprador}.pdf`);
-  }
-
-
-    function formatarHora(horaStr) {
+  function formatarHora(horaStr) {
     if (!horaStr) return "Horário a definir"
     const [hora, minuto] = horaStr.split(":")
     if (!hora) return "Horário a definir"
     return `às ${hora}h${minuto || ""}`
   }
 
-
-
-  async function gerarPDFConvidado() {
-    if (!qrCodeValue) return alert("Convite não gerado ainda!");
-    if (!form.convidadoNome?.trim()) return alert("Nenhum convidado foi informado!");
-
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    doc.setFillColor("#003885");
-    doc.rect(0, 0, 210, 297, "F");
-
-    if (eventoInfo.imagemURL) {
-      const imgData = await getImageDataUrl(eventoInfo.imagemURL);
-      if (imgData) {
-        doc.addImage(imgData, "JPEG", 15, 15, 180, 90);
-      }
+  async function getImageDataUrl(url) {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      return await new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      return null
     }
-
-    const nomeCompletoConvidado = `${form.convidadoNome} ${form.convidadoSobrenome}`;
-    const qrConvidado = await QRCode.toDataURL(nomeCompletoConvidado);
-
-    function drawQrCode(x, y, size, img) {
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(1);
-      doc.rect(x, y, size, size);
-      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4);
-    }
-
-    const leftX = 25;
-    const qrSize = 40;
-    const startY = 110;
-
-    drawQrCode(leftX, startY, qrSize, qrConvidado);
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Convidado:", leftX, startY + qrSize + 10);
-    doc.setFontSize(14);
-    doc.text(nomeCompletoConvidado, leftX, startY + qrSize + 18);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, leftX, startY + qrSize + 26);
-    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor("#FFCCFF");
-    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" });
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(255, 255, 255);
-    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" });
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor("#FF99CC");
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(255, 255, 255);
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" });
-    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
-
-    doc.save(`Convite - ${nomeCompletoConvidado}.pdf`);
   }
 
+  async function gerarPDFComprador() {
+    if (!qrCodeValue) return alert("Convite não gerado ainda!")
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+    doc.setFillColor("#003885")
+    doc.rect(0, 0, 210, 297, "F")
+    if (eventoInfo.imagemURL) {
+      const imgData = await getImageDataUrl(eventoInfo.imagemURL)
+      if (imgData) doc.addImage(imgData, "JPEG", 15, 15, 180, 90)
+    }
+    const nomeCompletoComprador = `${form.nome} ${form.sobrenome}`
+    const qrComprador = await QRCode.toDataURL(nomeCompletoComprador)
+    function drawQrCode(x, y, size, img) {
+      doc.setDrawColor(255, 255, 255)
+      doc.setLineWidth(1)
+      doc.rect(x, y, size, size)
+      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4)
+    }
+    const leftX = 25
+    const qrSize = 40
+    const startY = 110
+    drawQrCode(leftX, startY, qrSize, qrComprador)
+    doc.setTextColor(255, 255, 255)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(16)
+    doc.text("Comprador:", leftX, startY + qrSize + 10)
+    doc.setFontSize(14)
+    doc.text(nomeCompletoComprador, leftX, startY + qrSize + 18)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(12)
+    doc.text(`CPF: ${form.cpf}`, leftX, startY + qrSize + 26)
+    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(20)
+    doc.setTextColor("#FFCCFF")
+    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" })
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(255, 255, 255)
+    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" })
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(14)
+    doc.setTextColor("#FF99CC")
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" })
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(12)
+    doc.setTextColor(255, 255, 255)
+    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" })
+    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
+    doc.save(`Convite - ${nomeCompletoComprador}.pdf`)
+  }
 
+  async function gerarPDFConvidado() {
+    if (!qrCodeValue) return alert("Convite não gerado ainda!")
+    if (!form.convidadoNome?.trim()) return alert("Nenhum convidado foi informado!")
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+    doc.setFillColor("#003885")
+    doc.rect(0, 0, 210, 297, "F")
+    if (eventoInfo.imagemURL) {
+      const imgData = await getImageDataUrl(eventoInfo.imagemURL)
+      if (imgData) doc.addImage(imgData, "JPEG", 15, 15, 180, 90)
+    }
+    const nomeCompletoConvidado = `${form.convidadoNome} ${form.convidadoSobrenome}`
+    const qrConvidado = await QRCode.toDataURL(nomeCompletoConvidado)
+    function drawQrCode(x, y, size, img) {
+      doc.setDrawColor(255, 255, 255)
+      doc.setLineWidth(1)
+      doc.rect(x, y, size, size)
+      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4)
+    }
+    const leftX = 25
+    const qrSize = 40
+    const startY = 110
+    drawQrCode(leftX, startY, qrSize, qrConvidado)
+    doc.setTextColor(255, 255, 255)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(16)
+    doc.text("Convidado:", leftX, startY + qrSize + 10)
+    doc.setFontSize(14)
+    doc.text(nomeCompletoConvidado, leftX, startY + qrSize + 18)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(12)
+    doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, leftX, startY + qrSize + 26)
+    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(20)
+    doc.setTextColor("#FFCCFF")
+    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" })
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(255, 255, 255)
+    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" })
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(14)
+    doc.setTextColor("#FF99CC")
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" })
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(12)
+    doc.setTextColor(255, 255, 255)
+    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" })
+    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
+    doc.save(`Convite - ${nomeCompletoConvidado}.pdf`)
+  }
+
+  // Renderização
   if (!eventoSelecionado) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
@@ -584,28 +582,9 @@ useEffect(() => {
     )
   }
 
-    if (visualizandoConvites && eventoInfo.idEvento) {
+  if (visualizandoConvites && eventoInfo.idEvento) {
     return (<VisualizarEventos idEvento={eventoInfo.idEvento} onVoltar={() => setVisualizandoConvites(false)} />)
   }
-
-    {Object.keys(convitesEvento).length > 0 && (
-    <div className="mt-12">
-      <h2 className="text-xl font-bold mb-4 text-purple-800 flex items-center gap-2"><Users className="h-5 w-5" /> Convites Criados</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(convitesEvento).map(([id, convite]) => (
-          <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">ID: <span className="font-mono">{id}</span></p>
-            <p className="text-md font-semibold text-gray-800 mt-2">{convite.comprador?.nome} {convite.comprador?.sobrenome}</p>
-            <p className="text-sm text-gray-500">{convite.comprador?.email}</p>{convite.convidado?.nome && (<p className="text-sm text-gray-700 mt-1">+ Convidado: {convite.convidado.nome}</p>)}
-            <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => excluirConvite(id)}>Excluir</Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
@@ -793,6 +772,26 @@ useEffect(() => {
             )}
           </CardContent>
         </Card>
+        {/* Lista de convites */}
+        {Object.keys(convitesEvento).length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-bold mb-4 text-purple-800 flex items-center gap-2"><Users className="h-5 w-5" /> Convites Criados</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(convitesEvento).map(([id, convite]) => (
+                <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
+                  <p className="text-sm text-gray-600">ID: <span className="font-mono">{id}</span></p>
+                  <p className="text-md font-semibold text-gray-800 mt-2">{convite.comprador?.nome} {convite.comprador?.sobrenome}</p>
+                  <p className="text-sm text-gray-500">{convite.comprador?.email}</p>
+                  {convite.convidado?.nome && (<p className="text-sm text-gray-700 mt-1">+ Convidado: {convite.convidado.nome}</p>)}
+                  <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
+                  <div className="mt-4 flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => excluirConvite(id)}>Excluir</Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

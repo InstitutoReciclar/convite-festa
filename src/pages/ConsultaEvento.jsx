@@ -113,39 +113,41 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     }
   }
 
-  useEffect(() => {
-    if (qrModalAberto) {
-      setScannerLoading(true)
-      const iniciarCamera = async () => {
-        try {
-          const cameras = await Html5Qrcode.getCameras()
-          if (!cameras || cameras.length === 0) {
-            toast.error("Nenhuma câmera encontrada.")
-            setScannerLoading(false)
-            return
-          }
-          const cameraId = cameras[0].id
-          if (!html5QrCodeRef.current) {
-            html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
-          }
-          await html5QrCodeRef.current.start(
-            cameraId,
-            { fps: 10, qrbox: 250 },
-            handleQRCodeRead,
-            () => {}
-          )
+useEffect(() => {
+  if (qrModalAberto) {
+    setScannerLoading(true)
+    const iniciarCamera = async () => {
+      try {
+        // Aguarda o DOM do modal ser renderizado
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        const cameras = await Html5Qrcode.getCameras()
+        if (!cameras || cameras.length === 0) {
+          toast.error("Nenhuma câmera encontrada.")
           setScannerLoading(false)
-        } catch (err) {
-          console.error("Erro ao iniciar câmera:", err)
-          toast.error("Erro ao acessar a câmera: " + err.message)
-          setScannerLoading(false)
+          return
         }
+        const cameraId = cameras[0].id
+        if (!html5QrCodeRef.current) {
+          html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
+        }
+        await html5QrCodeRef.current.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          handleQRCodeRead,
+          () => {}
+        )
+        setScannerLoading(false)
+      } catch (err) {
+        console.error("Erro ao iniciar câmera:", err)
+        toast.error("Erro ao acessar a câmera: " + err.message)
+        setScannerLoading(false)
       }
-      iniciarCamera()
-    } else {
-      stopCamera()
     }
-  }, [qrModalAberto])
+    iniciarCamera()
+  } else {
+    stopCamera()
+  }
+}, [qrModalAberto])
 
   const confirmarPresencaComprador = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
