@@ -104,65 +104,75 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     }
   }
 
-  const stopCamera = () => {
+  function stopCamera() {
     if (html5QrCodeRef.current) {
-      html5QrCodeRef.current
-        .stop()
-        .then(() => html5QrCodeRef.current.clear())
-        .catch((err) => console.error("Erro ao parar scanner:", err))
+      // Só para se estiver rodando
+      if (html5QrCodeRef.current._isScanning) {
+        html5QrCodeRef.current
+          .stop()
+          .then(() => html5QrCodeRef.current.clear())
+          .catch((err) => {
+            // Ignora erro de "Cannot stop, scanner is not running or paused."
+            if (!String(err).includes("Cannot stop, scanner is not running or paused.")) {
+              console.error("Erro ao parar scanner:", err)
+            }
+            html5QrCodeRef.current.clear()
+          })
+      } else {
+        html5QrCodeRef.current.clear()
+      }
     }
   }
 
-// ...existing code...
-useEffect(() => {
-  if (qrModalAberto) {
-    setScannerLoading(true)
-    const iniciarCamera = async () => {
-      try {
-        // Aguarda o DOM do modal ser renderizado
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        const cameras = await Html5Qrcode.getCameras()
-        if (!cameras || cameras.length === 0) {
-          toast.error("Nenhuma câmera encontrada.")
+  useEffect(() => {
+    if (qrModalAberto) {
+      setScannerLoading(true)
+      const iniciarCamera = async () => {
+        try {
+          // Aguarda o DOM do modal ser renderizado
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          const cameras = await Html5Qrcode.getCameras()
+          if (!cameras || cameras.length === 0) {
+            toast.error("Nenhuma câmera encontrada.")
+            setScannerLoading(false)
+            return
+          }
+          // Tenta encontrar a câmera traseira
+          const backCamera = cameras.find(
+            (cam) =>
+              cam.label.toLowerCase().includes("back") ||
+              cam.label.toLowerCase().includes("traseira") ||
+              cam.label.toLowerCase().includes("rear")
+          )
+          const cameraId = backCamera ? backCamera.id : cameras[0].id
+          // Garante que o elemento existe antes de iniciar
+          const regionElement = document.getElementById(qrCodeRegionId)
+          if (!regionElement) {
+            toast.error("Elemento do scanner não encontrado.")
+            setScannerLoading(false)
+            return
+          }
+          if (!html5QrCodeRef.current) {
+            html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
+          }
+          await html5QrCodeRef.current.start(
+            cameraId,
+            { fps: 10, qrbox: 250 },
+            handleQRCodeRead,
+            () => {}
+          )
           setScannerLoading(false)
-          return
-        }
-        // Tenta encontrar a câmera traseira
-        const backCamera = cameras.find(
-          (cam) =>
-            cam.label.toLowerCase().includes("back") ||
-            cam.label.toLowerCase().includes("traseira") ||
-            cam.label.toLowerCase().includes("rear")
-        )
-        const cameraId = backCamera ? backCamera.id : cameras[0].id
-        // Garante que o elemento existe antes de iniciar
-        const regionElement = document.getElementById(qrCodeRegionId)
-        if (!regionElement) {
-          toast.error("Elemento do scanner não encontrado.")
+        } catch (err) {
+          console.error("Erro ao iniciar câmera:", err)
+          toast.error("Erro ao acessar a câmera: " + err.message)
           setScannerLoading(false)
-          return
         }
-        if (!html5QrCodeRef.current) {
-          html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
-        }
-        await html5QrCodeRef.current.start(
-          cameraId,
-          { fps: 10, qrbox: 250 },
-          handleQRCodeRead,
-          () => {}
-        )
-        setScannerLoading(false)
-      } catch (err) {
-        console.error("Erro ao iniciar câmera:", err)
-        toast.error("Erro ao acessar a câmera: " + err.message)
-        setScannerLoading(false)
       }
+      iniciarCamera()
+    } else {
+      stopCamera()
     }
-    iniciarCamera()
-  } else {
-    stopCamera()
-  }
-}, [qrModalAberto])
+  }, [qrModalAberto])
 // ...existing code...
 
   const confirmarPresencaComprador = () => {
@@ -210,6 +220,8 @@ useEffect(() => {
       c.convidado?.email?.toLowerCase().includes(termo)
     )
   })
+
+
 
   const badgePresenca = (status) => (
     <Badge className={status === "presente" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
