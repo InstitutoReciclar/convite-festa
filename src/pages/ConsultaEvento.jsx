@@ -14,7 +14,7 @@ import {
   Users,
   UserCheck,
   Clock,
-  Mail,
+  Phone,
   CreditCard,
   Camera,
   Loader2,
@@ -35,6 +35,25 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   const ultimaLeituraRef = useRef(0)
   const TEMPO_ENTRE_LEITURAS = 2000
   const db = getDatabase()
+
+  // Função para formatar CPF
+  function formatarCPF(valor) {
+    if (!valor) return ""
+    valor = valor.replace(/\D/g, "")
+    valor = valor.replace(/(\d{3})(\d)/, "$1.$2")
+    valor = valor.replace(/(\d{3})(\d)/, "$1.$2")
+    valor = valor.replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+    return valor.slice(0, 14)
+  }
+
+  // Função para formatar telefone
+  function formatarTelefone(valor) {
+    if (!valor) return ""
+    valor = valor.replace(/\D/g, "")
+    valor = valor.replace(/^(\d{2})(\d)/g, "($1) $2")
+    valor = valor.replace(/(\d{5})(\d)/, "$1-$2")
+    return valor.slice(0, 15)
+  }
 
   useEffect(() => {
     const convitesRef = ref(db, `convites/${idEvento}`)
@@ -62,34 +81,30 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     stopCamera()
   }
 
-function stopCamera() {
-  if (html5QrCodeRef.current) {
-    if (html5QrCodeRef.current._isScanning) {
-      html5QrCodeRef.current
-        .stop()
-        .then(() => {
-          setTimeout(() => {
-            try {
-              if (html5QrCodeRef.current) html5QrCodeRef.current.clear()
-            } catch (err) {
-              // ignora erro de clear se scanner não está rodando
+  function stopCamera() {
+    if (html5QrCodeRef.current) {
+      if (html5QrCodeRef.current._isScanning) {
+        html5QrCodeRef.current
+          .stop()
+          .then(() => {
+            setTimeout(() => {
+              try {
+                if (html5QrCodeRef.current) html5QrCodeRef.current.clear()
+              } catch (err) {}
+            }, 1000)
+          })
+          .catch((err) => {
+            if (!String(err).includes("Cannot stop, scanner is not running or paused.")) {
+              console.error("Erro ao parar scanner:", err)
             }
-          }, 1000) // aumente o delay para garantir que o scanner parou
-        })
-        .catch((err) => {
-          if (!String(err).includes("Cannot stop, scanner is not running or paused.")) {
-            console.error("Erro ao parar scanner:", err)
-          }
-        })
-    } else {
-      try {
-        html5QrCodeRef.current.clear()
-      } catch (err) {
-        // ignora erro de clear se scanner não está rodando
+          })
+      } else {
+        try {
+          html5QrCodeRef.current.clear()
+        } catch (err) {}
       }
     }
   }
-}
 
   useEffect(() => {
     return () => {
@@ -97,59 +112,58 @@ function stopCamera() {
     }
   }, [])
 
-useEffect(() => {
-  if (qrModalAberto) {
-    setScannerLoading(true)
-    const iniciarCamera = async () => {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        const cameras = await Html5Qrcode.getCameras()
-        if (!cameras || cameras.length === 0) {
-          toast.error("Nenhuma câmera encontrada.")
+  useEffect(() => {
+    if (qrModalAberto) {
+      setScannerLoading(true)
+      const iniciarCamera = async () => {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          const cameras = await Html5Qrcode.getCameras()
+          if (!cameras || cameras.length === 0) {
+            toast.error("Nenhuma câmera encontrada.")
+            setScannerLoading(false)
+            return
+          }
+          const backCamera = cameras.find(
+            (cam) =>
+              cam.label.toLowerCase().includes("back") ||
+              cam.label.toLowerCase().includes("traseira") ||
+              cam.label.toLowerCase().includes("rear")
+          )
+          const cameraId = backCamera ? backCamera.id : cameras[0].id
+          const regionElement = document.getElementById(qrCodeRegionId)
+          if (!regionElement) {
+            toast.error("Elemento do scanner não encontrado.")
+            setScannerLoading(false)
+            return
+          }
+          if (html5QrCodeRef.current) {
+            try {
+              await html5QrCodeRef.current.stop()
+            } catch {}
+            try {
+              html5QrCodeRef.current.clear()
+            } catch {}
+          }
+          html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
+          await html5QrCodeRef.current.start(
+            cameraId,
+            { fps: 10, qrbox: 250 },
+            handleQRCodeRead,
+            () => {}
+          )
           setScannerLoading(false)
-          return
-        }
-        const backCamera = cameras.find(
-          (cam) =>
-            cam.label.toLowerCase().includes("back") ||
-            cam.label.toLowerCase().includes("traseira") ||
-            cam.label.toLowerCase().includes("rear")
-        )
-        const cameraId = backCamera ? backCamera.id : cameras[0].id
-        const regionElement = document.getElementById(qrCodeRegionId)
-        if (!regionElement) {
-          toast.error("Elemento do scanner não encontrado.")
+        } catch (err) {
+          console.error("Erro ao iniciar câmera:", err)
+          toast.error("Erro ao acessar a câmera: " + err.message)
           setScannerLoading(false)
-          return
         }
-        // Limpa scanner anterior antes de criar um novo
-        if (html5QrCodeRef.current) {
-          try {
-            await html5QrCodeRef.current.stop()
-          } catch {}
-          try {
-            html5QrCodeRef.current.clear()
-          } catch {}
-        }
-        html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
-        await html5QrCodeRef.current.start(
-          cameraId,
-          { fps: 10, qrbox: 250 },
-          handleQRCodeRead,
-          () => {}
-        )
-        setScannerLoading(false)
-      } catch (err) {
-        console.error("Erro ao iniciar câmera:", err)
-        toast.error("Erro ao acessar a câmera: " + err.message)
-        setScannerLoading(false)
       }
+      iniciarCamera()
+    } else {
+      stopCamera()
     }
-    iniciarCamera()
-  } else {
-    stopCamera()
-  }
-}, [qrModalAberto])
+  }, [qrModalAberto])
 
   const confirmarPresencaComprador = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
@@ -325,13 +339,13 @@ useEffect(() => {
                         {convite.comprador?.nome} {convite.comprador?.sobrenome}
                       </h3>
                       <div className="flex items-center text-sm text-gray-600 mt-1">
-                        <Mail className="w-4 h-4 mr-1" />
-                        {convite.comprador?.email}
+                        <Phone className="w-4 h-4 mr-1" />
+                        {formatarTelefone(convite.comprador?.telefone)}
                       </div>
                       {convite.comprador?.cpf && (
                         <div className="flex items-center text-sm text-gray-600 mt-1">
                           <CreditCard className="w-4 h-4 mr-1" />
-                          {convite.comprador?.cpf}
+                          {formatarCPF(convite.comprador?.cpf)}
                         </div>
                       )}
                     </CardHeader>
@@ -360,13 +374,13 @@ useEffect(() => {
                           {convite.convidado?.nome} {convite.convidado?.sobrenome}
                         </h3>
                         <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <Mail className="w-4 h-4 mr-1" />
-                          {convite.convidado?.email}
+                          <Phone className="w-4 h-4 mr-1" />
+                          {formatarTelefone(convite.convidado?.telefone)}
                         </div>
                         {convite.convidado?.cpf && (
                           <div className="flex items-center text-sm text-gray-600 mt-1">
                             <CreditCard className="w-4 h-4 mr-1" />
-                            {convite.convidado?.cpf}
+                            {formatarCPF(convite.convidado?.cpf)}
                           </div>
                         )}
                       </CardHeader>
@@ -426,10 +440,10 @@ useEffect(() => {
                         <strong>Nome:</strong> {conviteSelecionado.comprador?.nome} {conviteSelecionado.comprador?.sobrenome}
                       </p>
                       <p>
-                        <strong>Email:</strong> {conviteSelecionado.comprador?.email}
+                        <strong>Telefone/WhatsApp:</strong> {formatarTelefone(conviteSelecionado.comprador?.telefone)}
                       </p>
                       <p>
-                        <strong>CPF:</strong> {conviteSelecionado.comprador?.cpf}
+                        <strong>CPF:</strong> {formatarCPF(conviteSelecionado.comprador?.cpf)}
                       </p>
                       <p>
                         <strong>Status:</strong> {badgePresenca(conviteSelecionado.statusComprador)}
@@ -451,10 +465,10 @@ useEffect(() => {
                         <strong>Nome:</strong> {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}
                       </p>
                       <p>
-                        <strong>Email:</strong> {conviteSelecionado.convidado?.email}
+                        <strong>Telefone/WhatsApp:</strong> {formatarTelefone(conviteSelecionado.convidado?.telefone)}
                       </p>
                       <p>
-                        <strong>CPF:</strong> {conviteSelecionado.convidado?.cpf}
+                        <strong>CPF:</strong> {formatarCPF(conviteSelecionado.convidado?.cpf)}
                       </p>
                       <p>
                         <strong>Status:</strong> {badgePresenca(conviteSelecionado.statusConvidado)}

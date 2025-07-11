@@ -60,16 +60,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      {
-        path: "/register-user",
-        element: (
-          <ProtectedRoute allowedTypes={ALL_TYPES}>
-            <Suspense fallback={<div>Carregando Eventos...</div>}>
-              <Registro />
-            </Suspense>
-          </ProtectedRoute>
-        ),
-      },
+
 
       {
         path: "/CriarConvites",

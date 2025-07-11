@@ -29,7 +29,7 @@ export default function EventoEConvite() {
   const [eventosLista, setEventosLista] = useState({})
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
   const [form, setForm] = useState({
-    nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+    nome: "", sobrenome: "", telefone: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoTelefone: "", convidadoCPF: "",
   })
   const [eventoInfo, setEventoInfo] = useState({
     idEvento: "", nomeEvento: "", dataEvento: "", localEvento: "", imagem: null, imagemURL: "", imagemBase64: "",
@@ -45,14 +45,56 @@ export default function EventoEConvite() {
   const tiposEvento = [
     { value: "brunch", label: "Brunch", icon: "☕", color: "bg-pink-500" },
     { value: "corporativo", label: "Corporativo", icon: "🏢", color: "bg-blue-500" },
-    { value: "formatura", label: "Formatura", icon: "🎓", color: "bg-purple-500" },
+    { value: "aniversario", label: "Aniversário 30 Anos", icon: "🎂", color: "bg-purple-500" },
     { value: "outro", label: "Outro", icon: "🎵", color: "bg-gray-500" },
   ]
+
+  // Função para buscar endereço pelo CEP
+  async function buscarEnderecoPorCEP(cep) {
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep.replace(/\D/g, "")}/json/`)
+      const data = await response.json()
+      if (!data.erro) {
+        setEvento((prev) => ({
+          ...prev,
+          endereco: data.logradouro || "",
+          local: data.bairro || "",
+          numero: prev.numero || "",
+        }))
+      }
+    } catch (error) {
+      toast.error("CEP inválido ou erro ao buscar endereço.")
+    }
+  }
+
+  // Formatar CPF
+  function formatarCPF(valor) {
+    valor = valor.replace(/\D/g, "")
+    valor = valor.replace(/(\d{3})(\d)/, "$1.$2")
+    valor = valor.replace(/(\d{3})(\d)/, "$1.$2")
+    valor = valor.replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+    return valor.slice(0, 14)
+  }
+
+  // Formatar telefone
+  function formatarTelefone(valor) {
+    valor = valor.replace(/\D/g, "")
+    valor = valor.replace(/^(\d{2})(\d)/g, "($1) $2")
+    valor = valor.replace(/(\d{5})(\d)/, "$1-$2")
+    return valor.slice(0, 15)
+  }
 
   // Cadastro evento
   const handleChangeEvento = (e) => {
     const { name, value } = e.target
-    setEvento((prev) => ({ ...prev, [name]: value }))
+    let novoValor = value
+    if (name === "cep" && value.replace(/\D/g, "").length === 8) {
+      buscarEnderecoPorCEP(value)
+    }
+    if (name === "cpf") {
+      novoValor = formatarCPF(value)
+    }
+    setEvento((prev) => ({ ...prev, [name]: novoValor }))
   }
   const handleSubmitEvento = async (e) => {
     e.preventDefault()
@@ -116,7 +158,7 @@ export default function EventoEConvite() {
       imagemBase64: "",
     })
     setForm({
-      nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+      nome: "", sobrenome: "", telefone: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoTelefone: "", convidadoCPF: "",
     })
     setQrCodeValue(null)
     setErrors({})
@@ -127,7 +169,14 @@ export default function EventoEConvite() {
   // Form handlers
   function handleChangeConvite(e) {
     const { name, value } = e.target
-    setForm((f) => ({ ...f, [name]: value }))
+    let novoValor = value
+    if (name === "cpf" || name === "convidadoCPF") {
+      novoValor = formatarCPF(value)
+    }
+    if (name === "telefone" || name === "convidadoTelefone") {
+      novoValor = formatarTelefone(value)
+    }
+    setForm((f) => ({ ...f, [name]: novoValor }))
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }))
   }
 
@@ -147,17 +196,18 @@ export default function EventoEConvite() {
     }
   }
 
+  // Validação para telefone/WhatsApp
   function validateForm() {
     const newErrors = {}
     if (!form.nome.trim()) newErrors.nome = "Nome é obrigatório"
     if (!form.sobrenome.trim()) newErrors.sobrenome = "Sobrenome é obrigatório"
-    if (!form.email.trim()) newErrors.email = "E-mail é obrigatório"
-    else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = "E-mail inválido"
+    if (!form.telefone?.trim()) newErrors.telefone = "Telefone é obrigatório"
+    else if (!/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.telefone)) newErrors.telefone = "Telefone inválido"
     if (!form.cpf.trim()) newErrors.cpf = "CPF é obrigatório"
-    else if (!/^\d{11}$/.test(form.cpf.replace(/\D/g, ""))) newErrors.cpf = "CPF deve ter 11 dígitos"
-    if (form.convidadoEmail && !/\S+@\S+\.\S+/.test(form.convidadoEmail))
-      newErrors.convidadoEmail = "E-mail do convidado inválido"
-    if (form.convidadoCPF && !/^\d{11}$/.test(form.convidadoCPF.replace(/\D/g, "")))
+    else if (form.cpf.replace(/\D/g, "").length !== 11) newErrors.cpf = "CPF deve ter 11 dígitos"
+    if (form.convidadoTelefone && !/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.convidadoTelefone))
+      newErrors.convidadoTelefone = "Telefone do convidado inválido"
+    if (form.convidadoCPF && form.convidadoCPF.replace(/\D/g, "").length !== 11)
       newErrors.convidadoCPF = "CPF do convidado deve ter 11 dígitos"
     if (!eventoInfo.idEvento.trim()) newErrors.idEvento = "ID do evento é obrigatório"
     if (!eventoInfo.nomeEvento.trim()) newErrors.nomeEvento = "Nome do evento é obrigatório"
@@ -186,7 +236,7 @@ export default function EventoEConvite() {
           id: convidadoId,
           nome: form.convidadoNome || null,
           sobrenome: form.convidadoSobrenome || null,
-          email: form.convidadoEmail || null,
+          telefone: form.convidadoTelefone || null,
           cpf: form.convidadoCPF || null,
         },
         evento: {
@@ -209,7 +259,7 @@ export default function EventoEConvite() {
 
   function resetForm() {
     setForm({
-      nome: "", sobrenome: "", email: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoEmail: "", convidadoCPF: "",
+      nome: "", sobrenome: "", telefone: "", cpf: "", convidadoNome: "", convidadoSobrenome: "", convidadoTelefone: "", convidadoCPF: "",
     })
     setQrCodeValue(null)
     setErrors({})
@@ -281,50 +331,84 @@ export default function EventoEConvite() {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
     doc.setFillColor("#003885")
     doc.rect(0, 0, 210, 297, "F")
+    let imgY = 15
     if (eventoInfo.imagemURL) {
       const imgData = await getImageDataUrl(eventoInfo.imagemURL)
-      if (imgData) doc.addImage(imgData, "JPEG", 15, 15, 180, 90)
+      if (imgData) {
+        doc.addImage(imgData, "JPEG", 15, imgY, 180, 90)
+        imgY += 90
+      }
     }
+    // QR Code e dados do comprador lado a lado
     const nomeCompletoComprador = `${form.nome} ${form.sobrenome}`
     const qrComprador = await QRCode.toDataURL(nomeCompletoComprador)
-    function drawQrCode(x, y, size, img) {
-      doc.setDrawColor(255, 255, 255)
-      doc.setLineWidth(1)
-      doc.rect(x, y, size, size)
-      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4)
-    }
-    const leftX = 25
-    const qrSize = 40
-    const startY = 110
-    drawQrCode(leftX, startY, qrSize, qrComprador)
+    const qrX = 25
+    const qrY = imgY + 20
+    const qrSize = 60
+
+    // QR Code
+    doc.setDrawColor(255, 255, 255)
+    doc.setLineWidth(2)
+    doc.rect(qrX, qrY, qrSize, qrSize)
+    doc.addImage(qrComprador, "PNG", qrX + 4, qrY + 4, qrSize - 8, qrSize - 8)
+
+    // Dados do comprador ao lado direito do QR (mais próximos)
+    const dadosX = qrX + qrSize + 10
+    let dadosY = qrY + 5
+    doc.setTextColor("#F20DE7")
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(26)
+    doc.text("Ingresso Comprador", dadosX, dadosY)
+    dadosY += 18
     doc.setTextColor(255, 255, 255)
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(16)
-    doc.text("Comprador:", leftX, startY + qrSize + 10)
-    doc.setFontSize(14)
-    doc.text(nomeCompletoComprador, leftX, startY + qrSize + 18)
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(12)
-    doc.text(`CPF: ${form.cpf}`, leftX, startY + qrSize + 26)
-    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34)
-    doc.setFont("helvetica", "bold")
     doc.setFontSize(20)
+    doc.text(nomeCompletoComprador, dadosX, dadosY)
+    dadosY += 14
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(18)
+    doc.text(`CPF:`, dadosX, dadosY)
+    doc.setFont("Arial", "normal")
+    doc.setFontSize(18)
+    doc.text(`${form.cpf || "N/A"}`, dadosX + 30, dadosY)
+    dadosY += 14
+    doc.setFont("Arial", "bold")
+    doc.text(`Telefone:`, dadosX, dadosY)
+    doc.setFont("Arial", "normal")
+    doc.text(`${form.telefone || "N/A"}`, dadosX + 35, dadosY)
+    dadosY += 14
+    doc.setFont("Arial", "bold")
+    doc.text(`Código:`, dadosX, dadosY)
+    doc.setFont("Arial", "normal")
+    doc.text(`${qrCodeValue}`, dadosX + 35, dadosY)
+
+    // Dados do evento (centralizado e grande)
+    const eventoY = qrY + qrSize + 30
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(24)
     doc.setTextColor("#FFCCFF")
-    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" })
-    doc.setFontSize(14)
-    doc.setFont("helvetica", "normal")
+    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" })
+
+    doc.setFontSize(20)
+    doc.setFont("Arial", "normal")
     doc.setTextColor(255, 255, 255)
-    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" })
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(14)
-    doc.setTextColor("#FF99CC")
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" })
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(12)
+    doc.text("ás 19h", 105, eventoY + 14, { align: "center" })
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(20)
+    doc.setTextColor("#F20DE7")
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 26, { align: "center" }) 
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(20)
     doc.setTextColor(255, 255, 255)
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" })
+    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, eventoY + 38, { align: "center" })
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(18)
+    doc.setTextColor("#FFCCFF")
     doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
-    doc.save(`Convite - ${nomeCompletoComprador}.pdf`)
+
+    doc.save(`Ingresso ${eventoInfo.nomeEvento} - ${nomeCompletoComprador}.pdf`)
   }
 
   async function gerarPDFConvidado() {
@@ -333,50 +417,84 @@ export default function EventoEConvite() {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
     doc.setFillColor("#003885")
     doc.rect(0, 0, 210, 297, "F")
+    let imgY = 15
     if (eventoInfo.imagemURL) {
       const imgData = await getImageDataUrl(eventoInfo.imagemURL)
-      if (imgData) doc.addImage(imgData, "JPEG", 15, 15, 180, 90)
+      if (imgData) {
+        doc.addImage(imgData, "JPEG", 15, imgY, 180, 90)
+        imgY += 90
+      }
     }
+    // QR Code e dados do convidado lado a lado
     const nomeCompletoConvidado = `${form.convidadoNome} ${form.convidadoSobrenome}`
     const qrConvidado = await QRCode.toDataURL(nomeCompletoConvidado)
-    function drawQrCode(x, y, size, img) {
-      doc.setDrawColor(255, 255, 255)
-      doc.setLineWidth(1)
-      doc.rect(x, y, size, size)
-      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4)
-    }
-    const leftX = 25
-    const qrSize = 40
-    const startY = 110
-    drawQrCode(leftX, startY, qrSize, qrConvidado)
+    const qrX = 25
+    const qrY = imgY + 20
+    const qrSize = 60
+
+    // QR Code
+    doc.setDrawColor(255, 255, 255)
+    doc.setLineWidth(2)
+    doc.rect(qrX, qrY, qrSize, qrSize)
+    doc.addImage(qrConvidado, "PNG", qrX + 4, qrY + 4, qrSize - 8, qrSize - 8)
+
+    // Dados do convidado ao lado direito do QR (mais próximos)
+    const dadosX = qrX + qrSize + 10 // diminui distância
+    let dadosY = qrY + 5
+    doc.setTextColor("#F20DE7")
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(26)
+    doc.text("Ingresso Convidado", dadosX, dadosY)
+    dadosY += 18
     doc.setTextColor(255, 255, 255)
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(16)
-    doc.text("Convidado:", leftX, startY + qrSize + 10)
-    doc.setFontSize(14)
-    doc.text(nomeCompletoConvidado, leftX, startY + qrSize + 18)
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(12)
-    doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, leftX, startY + qrSize + 26)
-    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34)
-    doc.setFont("helvetica", "bold")
     doc.setFontSize(20)
+    doc.text(nomeCompletoConvidado, dadosX, dadosY)
+    dadosY += 14
+    doc.setFont("Chackra Pecth", "bold")
+    doc.setFontSize(18)
+    doc.text(`CPF:`, dadosX, dadosY)
+    doc.setFont("Chackra Pecth", "normal")
+    doc.setFontSize(18)
+    doc.text(`${form.convidadoCPF || "N/A"}`, dadosX + 30, dadosY)
+    dadosY += 14
+    doc.setFont("Chackra Pecth", "bold")
+    doc.text(`Telefone:`, dadosX, dadosY)
+    doc.setFont("Chackra Pecth", "normal")
+    doc.text(`${form.convidadoTelefone || "N/A"}`, dadosX + 35, dadosY)
+    dadosY += 14
+    doc.setFont("Chackra Pecth", "bold")
+    doc.text(`Código:`, dadosX, dadosY)
+    doc.setFont("Chackra Pecth", "normal")
+    doc.text(`${qrCodeValue}`, dadosX + 35, dadosY)
+
+    // Dados do evento (centralizado e grande)
+    const eventoY = qrY + qrSize + 36 // era 45, agora 20 para subir tudo
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(24)
+    doc.setTextColor("#F20DE7")
+    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" })
+
+    doc.setFontSize(20)
+    doc.setFont("Arial", "italic", "bold")
+    doc.setTextColor(255, 255, 255)
+    doc.text("ás 19h", 105, eventoY + 14, { align: "center" })
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(20)
+    doc.setTextColor("#F20DE7")
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 26, { align: "center" }) // subiu mais
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(20)
+    doc.setTextColor(255, 255, 255)
+    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, eventoY + 38, { align: "center" }) // subiu mais
+
+    doc.setFont("Arial", "bold")
+    doc.setFontSize(18)
     doc.setTextColor("#FFCCFF")
-    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" })
-    doc.setFontSize(14)
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(255, 255, 255)
-    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" })
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(14)
-    doc.setTextColor("#FF99CC")
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" })
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(12)
-    doc.setTextColor(255, 255, 255)
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" })
     doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
-    doc.save(`Convite - ${nomeCompletoConvidado}.pdf`)
+    doc.save(`Ingresso ${eventoInfo.nomeEvento} -  ${nomeCompletoConvidado}.pdf`)
   }
 
   // Renderização
@@ -629,14 +747,14 @@ export default function EventoEConvite() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email *</Label>
-                      <Input id="email" name="email" type="email" placeholder="seu@email.com" value={form.email} onChange={handleChangeConvite}
-                        className={`h-12 border-2 transition-colors ${errors.email ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"}`} />
-                      {errors.email && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.email}</p>)}
+                      <Label htmlFor="telefone" className="text-sm font-medium text-gray-700">Telefone/WhatsApp *</Label>
+                      <Input id="telefone" name="telefone" type="text" placeholder="(11) 99999-9999" value={form.telefone} onChange={handleChangeConvite}
+                        className={`h-12 border-2 transition-colors ${errors.telefone ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"}`} />
+                      {errors.telefone && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.telefone}</p>)}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="cpf" className="text-sm font-medium text-gray-700">CPF * </Label>
-                      <Input id="cpf" name="cpf" type="text"  placeholder="Somente números" maxLength={11} value={form.cpf} onChange={handleChangeConvite}
+                      <Input id="cpf" name="cpf" type="text"  placeholder="000.000.000-00" maxLength={14} value={form.cpf} onChange={handleChangeConvite}
                         className={`h-12 border-2 transition-colors ${errors.cpf ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"}`} />
                       {errors.cpf && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.cpf}</p> )}
                     </div>
@@ -668,14 +786,14 @@ export default function EventoEConvite() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="convidadoEmail" className="text-sm font-medium text-gray-700"> Email </Label>
-                      <Input id="convidadoEmail" name="convidadoEmail" type="email" placeholder="email@convidado.com" value={form.convidadoEmail} onChange={handleChangeConvite}
-                        className={`h-12 border-2 transition-colors ${errors.convidadoEmail ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-green-500"}`}/>
-                      {errors.convidadoEmail && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"> <AlertCircle className="h-3 w-3" /> {errors.convidadoEmail}</p>)}
+                      <Label htmlFor="convidadoTelefone" className="text-sm font-medium text-gray-700">Telefone/WhatsApp</Label>
+                      <Input id="convidadoTelefone" name="convidadoTelefone" type="text" placeholder="(11) 99999-9999" value={form.convidadoTelefone || ""} onChange={handleChangeConvite}
+                        className={`h-12 border-2 transition-colors ${errors.convidadoTelefone ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-green-500"}`} />
+                      {errors.convidadoTelefone && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.convidadoTelefone}</p>)}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="convidadoCPF" className="text-sm font-medium text-gray-700">CPF </Label>
-                      <Input id="convidadoCPF" name="convidadoCPF" type="text" placeholder="CPF do convidado" maxLength={11} value={form.convidadoCPF} onChange={handleChangeConvite}
+                      <Input id="convidadoCPF" name="convidadoCPF" type="text" placeholder="000.000.000-00" maxLength={14} value={form.convidadoCPF} onChange={handleChangeConvite}
                         className={`h-12 border-2 transition-colors ${errors.convidadoCPF ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-green-500"}`} />
                       {errors.convidadoCPF && ( <p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.convidadoCPF}</p> )}
                     </div>
@@ -762,8 +880,8 @@ export default function EventoEConvite() {
                           className="border-2 border-green-300 text-green-700 hover:bg-green-50 transition-colors bg-transparent">
                           <QrCode className="inline-block mr-2 h-4 w-4" />Baixar QR Code
                         </Button>
-                       <Button onClick={gerarPDFComprador} className="..."><Download className="inline-block mr-2 h-4 w-4" />Baixar PDF do Comprador</Button>
-                      <Button onClick={gerarPDFConvidado} className="..."><Download className="inline-block mr-2 h-4 w-4" />Baixar PDF do Convidado</Button>
+                       <Button onClick={gerarPDFComprador} className="..."><Download className="inline-block mr-2 h-4 w-4" />Baixar Ingresso do Comprador</Button>
+                      <Button onClick={gerarPDFConvidado} className="..."><Download className="inline-block mr-2 h-4 w-4" />Baixar Ingresso do Convidado</Button>
                       </div>
                     </>
                   )}
@@ -781,7 +899,7 @@ export default function EventoEConvite() {
                 <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
                   <p className="text-sm text-gray-600">ID: <span className="font-mono">{id}</span></p>
                   <p className="text-md font-semibold text-gray-800 mt-2">{convite.comprador?.nome} {convite.comprador?.sobrenome}</p>
-                  <p className="text-sm text-gray-500">{convite.comprador?.email}</p>
+                  <p className="text-sm text-gray-500">{convite.comprador?.telefone}</p>
                   {convite.convidado?.nome && (<p className="text-sm text-gray-700 mt-1">+ Convidado: {convite.convidado.nome}</p>)}
                   <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
                   <div className="mt-4 flex gap-2">
