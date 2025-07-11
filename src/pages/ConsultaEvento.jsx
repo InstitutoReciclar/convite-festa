@@ -159,11 +159,52 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   // Abre ou fecha modal QR e inicia ou para câmera
   useEffect(() => {
     if (qrModalAberto) {
-      startCamera()
+      setScannerLoading(true)
+
+      const iniciarCamera = async () => {
+        try {
+          const cameras = await Html5Qrcode.getCameras()
+
+          if (!cameras || cameras.length === 0) {
+            toast.error("Nenhuma câmera encontrada.")
+            setScannerLoading(false)
+            return
+          }
+
+          const cameraId = cameras[0].id
+          if (!html5QrCodeRef.current) {
+            html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
+          }
+
+          await html5QrCodeRef.current.start(
+            cameraId,
+            { fps: 10, qrbox: 250 },
+            (decodedText) => handleQRCodeRead(decodedText),
+            (error) => {
+              // leitura falhou, mas não precisa mostrar erro toda vez
+            }
+          )
+
+          setScannerLoading(false)
+        } catch (err) {
+          console.error("Erro ao iniciar câmera:", err)
+          toast.error("Erro ao acessar a câmera: " + err.message)
+          setScannerLoading(false)
+        }
+      }
+
+      iniciarCamera()
     } else {
-      stopCamera()
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current
+          .stop()
+          .then(() => html5QrCodeRef.current.clear())
+          .catch((err) => console.error("Erro ao parar scanner:", err))
+      }
     }
   }, [qrModalAberto])
+
+
 
   // Confirmar presença comprador
   const confirmarPresencaComprador = () => {
