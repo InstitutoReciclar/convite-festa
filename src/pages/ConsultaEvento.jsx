@@ -113,20 +113,35 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     }
   }
 
+// ...existing code...
 useEffect(() => {
   if (qrModalAberto) {
     setScannerLoading(true)
     const iniciarCamera = async () => {
       try {
         // Aguarda o DOM do modal ser renderizado
-        await new Promise((resolve) => setTimeout(resolve, 300))
+        await new Promise((resolve) => setTimeout(resolve, 500))
         const cameras = await Html5Qrcode.getCameras()
         if (!cameras || cameras.length === 0) {
           toast.error("Nenhuma câmera encontrada.")
           setScannerLoading(false)
           return
         }
-        const cameraId = cameras[0].id
+        // Tenta encontrar a câmera traseira
+        const backCamera = cameras.find(
+          (cam) =>
+            cam.label.toLowerCase().includes("back") ||
+            cam.label.toLowerCase().includes("traseira") ||
+            cam.label.toLowerCase().includes("rear")
+        )
+        const cameraId = backCamera ? backCamera.id : cameras[0].id
+        // Garante que o elemento existe antes de iniciar
+        const regionElement = document.getElementById(qrCodeRegionId)
+        if (!regionElement) {
+          toast.error("Elemento do scanner não encontrado.")
+          setScannerLoading(false)
+          return
+        }
         if (!html5QrCodeRef.current) {
           html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
         }
@@ -148,6 +163,7 @@ useEffect(() => {
     stopCamera()
   }
 }, [qrModalAberto])
+// ...existing code...
 
   const confirmarPresencaComprador = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
