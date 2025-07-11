@@ -1,4 +1,3 @@
-"use client"
 import { useEffect, useState, useRef } from "react"
 import { getDatabase, ref, onValue, update } from "firebase/database"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -36,19 +35,36 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   const TEMPO_ENTRE_LEITURAS = 2000
   const db = getDatabase()
 
+  useEffect(() => {
+    const convitesRef = ref(db, `convites/${idEvento}`)
+    setLoading(true)
+    const unsubscribe = onValue(convitesRef, (snapshot) => {
+      const data = snapshot.val() || {}
+      const convitesArray = Object.entries(data).map(([id, convite]) => ({
+        id,
+        ...convite,
+      }))
+      setConvites(convitesArray)
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [db, idEvento])
+
   const handleQRCodeRead = (decodedText) => {
     const agora = Date.now()
     if (agora - ultimaLeituraRef.current < TEMPO_ENTRE_LEITURAS) return
     ultimaLeituraRef.current = agora
 
-    const conviteEncontrado = convites.find(
-      (c) =>
-        c.id === decodedText ||
-        c.comprador?.email === decodedText ||
-        c.comprador?.cpf === decodedText ||
-        c.convidado?.email === decodedText ||
-        c.convidado?.cpf === decodedText ||
-        c.convidado?.id === decodedText
+    const conviteEncontrado = convites.find((c) =>
+      c.comprador?.nome === decodedText ||
+      c.comprador?.email === decodedText ||
+      c.comprador?.cpf === decodedText ||
+      c.comprador?.id === decodedText ||
+      c.convidado?.nome === decodedText ||
+      c.convidado?.email === decodedText ||
+      c.convidado?.cpf === decodedText ||
+      c.convidado?.id === decodedText
     )
 
     if (!conviteEncontrado) {
@@ -56,153 +72,82 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       return
     }
 
-    if (conviteEncontrado.status === "convidado presente") {
-      toast.error("Já marcado como presente!")
-      return
-    }
+    const isComprador =
+      conviteEncontrado.comprador?.nome === decodedText ||
+      conviteEncontrado.comprador?.email === decodedText ||
+      conviteEncontrado.comprador?.cpf === decodedText ||
+      conviteEncontrado.comprador?.id === decodedText
 
-    update(ref(db, `convites/${idEvento}/${conviteEncontrado.id}`), {
-      status: "convidado presente",
-    })
-      .then(() => {
-        setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" })
-        setModalDetalhesAberto(true)
-        setQrModalAberto(false)
+    const isConvidado =
+      conviteEncontrado.convidado?.nome === decodedText ||
+      conviteEncontrado.convidado?.email === decodedText ||
+      conviteEncontrado.convidado?.cpf === decodedText ||
+      conviteEncontrado.convidado?.id === decodedText
 
-        if (html5QrCodeRef.current) {
-          html5QrCodeRef.current.stop().then(() => html5QrCodeRef.current.clear())
-        }
-
-        toast.success("Presença confirmada!")
-      })
-      .catch(() => toast.error("Erro ao confirmar presença."))
-  }
-
-  const validarConvite = (idConvite) => {
-    const conviteEncontrado = convites.find((c) => c.id === idConvite)
-    if (!conviteEncontrado) {
-      toast.error("Convite não encontrado!")
-      return
-    }
-
-    if (conviteEncontrado.status === "convidado presente") {
-      toast.error("Já marcado como presente!")
-      return
-    }
-
-    update(ref(db, `convites/${idEvento}/${idConvite}`), {
-      status: "convidado presente",
-    })
-      .then(() => {
-        setConviteSelecionado({ ...conviteEncontrado, status: "convidado presente" })
-        toast.success("Presença confirmada!")
-      })
-      .catch(() => toast.error("Erro ao confirmar presença."))
-  }
-
-  useEffect(() => {
-    if (!idEvento) return
-
-    const convitesRef = ref(db, `convites/${idEvento}`)
-    const unsubscribe = onValue(
-      convitesRef,
-      (snapshot) => {
-        const dados = snapshot.val()
-        if (!dados || typeof dados !== "object") {
-          setConvites([])
-          setLoading(false)
-          return
-        }
-
-        const lista = Object.entries(dados).map(([id, data]) => ({ id, ...data }))
-        setConvites(lista)
-        setLoading(false)
-      },
-      (error) => {
-        toast.error("Erro ao ler dados do evento.")
-        setConvites([])
-        setLoading(false)
+    if (isComprador) {
+      if (conviteEncontrado.statusComprador === "presente") {
+        toast.error("Comprador já presente!")
+        return
       }
-    )
-
-    return () => unsubscribe()
-  }, [db, idEvento])
-
-  useEffect(() => {
-    if (qrModalAberto) {
-      setScannerLoading(true)
-
-      const iniciarScanner = async () => {
-        const element = document.getElementById(qrCodeRegionId)
-        if (!element) {
-          toast.error("Erro ao preparar o scanner.")
+      update(ref(db, `convites/${idEvento}/${conviteEncontrado.id}`), {
+        statusComprador: "presente",
+      })
+        .then(() => {
+          setConviteSelecionado({ ...conviteEncontrado, statusComprador: "presente" })
+          setModalDetalhesAberto(true)
           setQrModalAberto(false)
-          return
-        }
-
-        if (!html5QrCodeRef.current) {
-          html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
-        }
-
-        try {
-          await html5QrCodeRef.current.start(
-            { facingMode: { exact: "environment" } },
-            { fps: 10, qrbox: 250 },
-            handleQRCodeRead
-          )
-          setScannerLoading(false)
-        } catch (errEnv) {
-          try {
-            await html5QrCodeRef.current.start(
-              { facingMode: "user" },
-              { fps: 10, qrbox: 250 },
-              handleQRCodeRead
-            )
-            setScannerLoading(false)
-          } catch (errUser) {
-            console.error("Erro ao iniciar scanner:", errUser)
-            setScannerLoading(false)
-            toast.error("Erro ao iniciar câmera.")
-            setQrModalAberto(false)
-          }
-        }
+          html5QrCodeRef.current?.stop().then(() => html5QrCodeRef.current.clear())
+          toast.success("Presença do comprador confirmada!")
+        })
+        .catch(() => toast.error("Erro ao confirmar presença do comprador."))
+    } else if (isConvidado) {
+      if (conviteEncontrado.statusConvidado === "presente") {
+        toast.error("Convidado já presente!")
+        return
       }
-
-      const timer = setTimeout(iniciarScanner, 300)
-      return () => clearTimeout(timer)
+      update(ref(db, `convites/${idEvento}/${conviteEncontrado.id}`), {
+        statusConvidado: "presente",
+      })
+        .then(() => {
+          setConviteSelecionado({ ...conviteEncontrado, statusConvidado: "presente" })
+          setModalDetalhesAberto(true)
+          setQrModalAberto(false)
+          html5QrCodeRef.current?.stop().then(() => html5QrCodeRef.current.clear())
+          toast.success("Presença do convidado confirmada!")
+        })
+        .catch(() => toast.error("Erro ao confirmar presença do convidado."))
     } else {
-      if (html5QrCodeRef.current) {
-        const estado = html5QrCodeRef.current.getState?.() ?? 0
-        if (estado === 2) {
-          html5QrCodeRef.current
-            .stop()
-            .then(() => html5QrCodeRef.current.clear())
-            .catch((err) => console.error("Erro ao parar scanner:", err))
-        }
-        html5QrCodeRef.current = null
-      }
-      setScannerLoading(false)
+      toast.error("Não foi possível identificar se é comprador ou convidado.")
     }
-  }, [qrModalAberto])
+  }
 
-  // Dados para estatísticas
-  const totalConvites = convites.length
-  const totalPresentes = convites.filter((c) => c.status === "convidado presente").length
+  // Total de convites = número de compradores + número de convidados (cada convite tem 2 pessoas)
+  const totalConvites = convites.length * 2
 
-  // Filtro simples de pesquisa
-  const convitesFiltrados = convites.filter((convite) => {
+  // Total presentes
+  const totalPresentes =
+    convites.filter((c) => c.statusComprador === "presente").length +
+    convites.filter((c) => c.statusConvidado === "presente").length
+
+  // Pendentes = total convites - presentes
+  const totalPendentes = totalConvites - totalPresentes
+
+  // Filtro aplicado sobre compradores e convidados
+  const convitesFiltrados = convites.filter((c) => {
     const termo = filtro.toLowerCase()
     return (
-      convite.comprador?.nome?.toLowerCase().includes(termo) ||
-      convite.comprador?.sobrenome?.toLowerCase().includes(termo) ||
-      convite.comprador?.email?.toLowerCase().includes(termo) ||
-      convite.comprador?.cpf?.toLowerCase().includes(termo) ||
-      convite.convidado?.nome?.toLowerCase().includes(termo) ||
-      convite.convidado?.sobrenome?.toLowerCase().includes(termo) ||
-      convite.convidado?.email?.toLowerCase().includes(termo) ||
-      convite.convidado?.cpf?.toLowerCase().includes(termo)
+      c.comprador?.nome?.toLowerCase().includes(termo) ||
+      c.comprador?.email?.toLowerCase().includes(termo) ||
+      c.convidado?.nome?.toLowerCase().includes(termo) ||
+      c.convidado?.email?.toLowerCase().includes(termo)
     )
   })
+
+  const badgePresenca = (status) => (
+    <Badge className={status === "presente" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
+      {status === "presente" ? "Presente" : "Pendente"}
+    </Badge>
+  )
 
   const SkeletonCard = () => (
     <Card className="animate-pulse">
@@ -290,7 +235,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-orange-100 text-sm font-medium">Pendentes</p>
-                    <p className="text-3xl font-bold">{totalConvites - totalPresentes}</p>
+                    <p className="text-3xl font-bold">{totalPendentes}</p>
                   </div>
                   <Clock className="w-8 h-8 text-orange-200" />
                 </div>
@@ -467,47 +412,33 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                     )}
                   </div>
 
-                  {conviteSelecionado.convidado?.nome && (
-                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                      <div className="flex items-center">
-                        <Users className="w-5 h-5 text-gray-500 mr-3" />
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}
-                          </p>
-                          <p className="text-sm text-gray-600">Acompanhante</p>
-                        </div>
-                      </div>
+                  <div>
+                    <p className="font-semibold">Comprador:</p>
+                    <p>{conviteSelecionado.comprador?.nome}</p>
+                    <p>Email: {conviteSelecionado.comprador?.email}</p>
+                    <p>CPF: {conviteSelecionado.comprador?.cpf}</p>
+                    {badgePresenca(conviteSelecionado.statusComprador)}
+                    {conviteSelecionado.statusComprador !== "presente" && (
+                      <Button onClick={() => handleQRCodeRead(conviteSelecionado.comprador?.email)}>
+                        Confirmar Presença Comprador
+                      </Button>
+                    )}
+                  </div>
 
-                      <div className="flex items-center">
-                        <Mail className="w-5 h-5 text-gray-500 mr-3" />
-                        <span className="text-gray-700">{conviteSelecionado.convidado?.email}</span>
-                      </div>
-
-                      {conviteSelecionado.convidado?.cpf && (
-                        <div className="flex items-center">
-                          <CreditCard className="w-5 h-5 text-gray-500 mr-3" />
-                          <span className="text-gray-700">{conviteSelecionado.convidado.cpf}</span>
-                        </div>
+                  {conviteSelecionado.convidado && (
+                    <div className="mt-6 bg-gray-50 p-4 rounded-lg">
+                      <p className="font-semibold mb-2">Convidado:</p>
+                      <p>{conviteSelecionado.convidado.nome}</p>
+                      <p>Email: {conviteSelecionado.convidado.email}</p>
+                      <p>CPF: {conviteSelecionado.convidado.cpf}</p>
+                      {badgePresenca(conviteSelecionado.statusConvidado)}
+                      {conviteSelecionado.statusConvidado !== "presente" && (
+                        <Button onClick={() => handleQRCodeRead(conviteSelecionado.convidado?.email)}>
+                          Confirmar Presença Convidado
+                        </Button>
                       )}
                     </div>
                   )}
-
-                  <div className="flex justify-end gap-3">
-                    {conviteSelecionado.status !== "convidado presente" && (
-                      <Button
-                        onClick={() => validarConvite(conviteSelecionado.id)}
-                        variant="default"
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        Confirmar Presença
-                      </Button>
-                    )}
-
-                    <Button onClick={() => setModalDetalhesAberto(false)} variant="ghost">
-                      Fechar
-                    </Button>
-                  </div>
                 </div>
               )}
             </DialogContent>

@@ -246,77 +246,68 @@ useEffect(() => {
     catch {return null}
   }
 
-  async function gerarPDF() {
-    if (!qrCodeValue) return alert("Convite não gerado ainda!")
-    const doc = new jsPDF({orientation: "portrait", unit: "mm", format: "a4",})
-    doc.setFillColor("#003885")
-    doc.rect(0, 0, 210, 297, "F")
-    if (eventoInfo.imagemURL) {
-      const imgData = await getImageDataUrl(eventoInfo.imagemURL)
-      if (imgData) {doc.addImage(imgData, "JPEG", 15, 15, 180, 90)}
-    }
-    const qrComprador = await QRCode.toDataURL(`comprador-${qrCodeValue}`, { width: 150 })
-    let qrConvidado = null
-    const temConvidado = !!form.convidadoNome?.trim()
-    if (temConvidado) {qrConvidado = await QRCode.toDataURL(`convidado-${qrCodeValue}`, { width: 150 })}
-    function drawQrCode(x, y, size, img) {
-      doc.setDrawColor(255, 255, 255)
-      doc.setLineWidth(1)
-      doc.rect(x, y, size, size)
-      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4)
-    }
-    const leftX = 25
-    const rightX = 130
-    const qrSize = 40
-    const startY = 110
-    drawQrCode(leftX, startY, qrSize, qrComprador)
-    doc.setTextColor(255, 255, 255)
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(16)
-    doc.text("Comprador:", leftX, startY + qrSize + 10)
-    doc.setFontSize(14)
-    doc.text(form.nome, leftX, startY + qrSize + 18)
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(12)
-    doc.text(`CPF: ${form.cpf}`, leftX, startY + qrSize + 26)
-    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34)
-    doc.setFontSize(12)
-    doc.setTextColor(temConvidado ? "#FF99CC" : "#CCCCCC")
-    doc.text(temConvidado ? "Com convidado" : "Sem convidado", leftX, startY + qrSize + 42)
+  async function gerarPDFComprador() {
+    if (!qrCodeValue) return alert("Convite não gerado ainda!");
 
-    if (temConvidado && qrConvidado) {
-      drawQrCode(rightX, startY, qrSize, qrConvidado)
-      doc.setTextColor(255, 255, 255)
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(16)
-      doc.text("Convidado:", rightX, startY + qrSize + 10)
-      doc.setFontSize(14)
-      doc.text(form.convidadoNome, rightX, startY + qrSize + 18)
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(12)
-      doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, rightX, startY + qrSize + 26)
-      doc.setFontSize(12)
-      doc.text(`Codigo: ${qrConvidado ?? "N/A"}`, rightX, startY + qrSize + 34)
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    doc.setFillColor("#003885");
+    doc.rect(0, 0, 210, 297, "F");
+
+    if (eventoInfo.imagemURL) {
+      const imgData = await getImageDataUrl(eventoInfo.imagemURL);
+      if (imgData) {
+        doc.addImage(imgData, "JPEG", 15, 15, 180, 90);
+      }
     }
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(20)
-    doc.setTextColor("#FFCCFF")
-    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" })
-    doc.setFontSize(14)
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(255, 255, 255)
-    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" })
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(14)
-    doc.setTextColor("#FF99CC")
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" })
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(12)
-    doc.setTextColor(255, 255, 255)
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" })
-    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
-    doc.save(`Convite - ${form.nome} ${form.sobrenome}.pdf`)
+
+    const nomeCompletoComprador = `${form.nome} ${form.sobrenome}`;
+    const qrComprador = await QRCode.toDataURL(nomeCompletoComprador);
+
+    function drawQrCode(x, y, size, img) {
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(1);
+      doc.rect(x, y, size, size);
+      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4);
+    }
+
+    const leftX = 25;
+    const qrSize = 40;
+    const startY = 110;
+
+    drawQrCode(leftX, startY, qrSize, qrComprador);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Comprador:", leftX, startY + qrSize + 10);
+    doc.setFontSize(14);
+    doc.text(nomeCompletoComprador, leftX, startY + qrSize + 18);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`CPF: ${form.cpf}`, leftX, startY + qrSize + 26);
+    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor("#FFCCFF");
+    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" });
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(255, 255, 255);
+    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor("#FF99CC");
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" });
+    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
+
+    doc.save(`Convite - ${nomeCompletoComprador}.pdf`);
   }
+
 
     function formatarHora(horaStr) {
     if (!horaStr) return "Horário a definir"
@@ -324,6 +315,72 @@ useEffect(() => {
     if (!hora) return "Horário a definir"
     return `às ${hora}h${minuto || ""}`
   }
+
+
+
+  async function gerarPDFConvidado() {
+    if (!qrCodeValue) return alert("Convite não gerado ainda!");
+    if (!form.convidadoNome?.trim()) return alert("Nenhum convidado foi informado!");
+
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    doc.setFillColor("#003885");
+    doc.rect(0, 0, 210, 297, "F");
+
+    if (eventoInfo.imagemURL) {
+      const imgData = await getImageDataUrl(eventoInfo.imagemURL);
+      if (imgData) {
+        doc.addImage(imgData, "JPEG", 15, 15, 180, 90);
+      }
+    }
+
+    const nomeCompletoConvidado = `${form.convidadoNome} ${form.convidadoSobrenome}`;
+    const qrConvidado = await QRCode.toDataURL(nomeCompletoConvidado);
+
+    function drawQrCode(x, y, size, img) {
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(1);
+      doc.rect(x, y, size, size);
+      doc.addImage(img, "PNG", x + 2, y + 2, size - 4, size - 4);
+    }
+
+    const leftX = 25;
+    const qrSize = 40;
+    const startY = 110;
+
+    drawQrCode(leftX, startY, qrSize, qrConvidado);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Convidado:", leftX, startY + qrSize + 10);
+    doc.setFontSize(14);
+    doc.text(nomeCompletoConvidado, leftX, startY + qrSize + 18);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`CPF: ${form.convidadoCPF || "N/A"}`, leftX, startY + qrSize + 26);
+    doc.text(`Código: ${qrCodeValue}`, leftX, startY + qrSize + 34);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor("#FFCCFF");
+    doc.text(formatarData(eventoInfo.dataEvento), 105, 220, { align: "center" });
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(255, 255, 255);
+    doc.text(formatarHora(eventoInfo.horaInicio), 105, 235, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor("#FF99CC");
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, 255, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, 270, { align: "center" });
+    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
+
+    doc.save(`Convite - ${nomeCompletoConvidado}.pdf`);
+  }
+
 
   if (!eventoSelecionado) {
     return (
@@ -527,65 +584,41 @@ useEffect(() => {
     )
   }
 
-  if (visualizandoConvites && eventoInfo.idEvento) {
-  return (
-      <VisualizarEventos
-        idEvento={eventoInfo.idEvento}
-        onVoltar={() => setVisualizandoConvites(false)}
-      />
-  )
-}
+    if (visualizandoConvites && eventoInfo.idEvento) {
+    return (<VisualizarEventos idEvento={eventoInfo.idEvento} onVoltar={() => setVisualizandoConvites(false)} />)
+  }
 
-  {Object.keys(convitesEvento).length > 0 && (
-  <div className="mt-12">
-    <h2 className="text-xl font-bold mb-4 text-purple-800 flex items-center gap-2">
-      <Users className="h-5 w-5" /> Convites Criados
-    </h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {Object.entries(convitesEvento).map(([id, convite]) => (
-        <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
-          <p className="text-sm text-gray-600">ID: <span className="font-mono">{id}</span></p>
-          <p className="text-md font-semibold text-gray-800 mt-2">
-            {convite.comprador?.nome} {convite.comprador?.sobrenome}
-          </p>
-          <p className="text-sm text-gray-500">{convite.comprador?.email}</p>
-          {convite.convidado?.nome && (
-            <p className="text-sm text-gray-700 mt-1">+ Convidado: {convite.convidado.nome}</p>
-          )}
-          <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
-          <div className="mt-4 flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => excluirConvite(id)}>
-              Excluir
-            </Button>
-            {/* Ex: Adicione aqui outros botões para editar ou ver QR code */}
-          </div>
-        </Card>
-      ))}
+    {Object.keys(convitesEvento).length > 0 && (
+    <div className="mt-12">
+      <h2 className="text-xl font-bold mb-4 text-purple-800 flex items-center gap-2"><Users className="h-5 w-5" /> Convites Criados</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(convitesEvento).map(([id, convite]) => (
+          <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
+            <p className="text-sm text-gray-600">ID: <span className="font-mono">{id}</span></p>
+            <p className="text-md font-semibold text-gray-800 mt-2">{convite.comprador?.nome} {convite.comprador?.sobrenome}</p>
+            <p className="text-sm text-gray-500">{convite.comprador?.email}</p>{convite.convidado?.nome && (<p className="text-sm text-gray-700 mt-1">+ Convidado: {convite.convidado.nome}</p>)}
+            <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => excluirConvite(id)}>Excluir</Button>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
-  </div>
-)}
-
-
-
+  )}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
       <div className="max-w-4xl mx-auto">
-        <Button variant="ghost" onClick={() => setEventoSelecionado(null)} className="mb-6 hover:bg-white/50 transition-colors">
-          Voltar para Eventos
-        </Button>
-
+        <Button variant="ghost" onClick={() => setEventoSelecionado(null)} className="mb-6 hover:bg-white/50 transition-colors">Voltar para Eventos</Button>
         <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">
           <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg">
             <CardTitle className="text-2xl font-bold flex items-center gap-3">
-              <Ticket className="h-7 w-7" />
-              Reservar Convite
+              <Ticket className="h-7 w-7" />Reservar Convite
             </CardTitle>
             <div className="bg-white/20 rounded-lg p-3 mt-3">
               <p className="text-purple-100 font-medium">{eventoInfo.nomeEvento}</p>
-              <p className="text-purple-200 text-sm">
-                {formatarData(eventoInfo.dataEvento)} • {eventoInfo.localEvento}
-              </p>
+              <p className="text-purple-200 text-sm">{formatarData(eventoInfo.dataEvento)} • {eventoInfo.localEvento}</p>
             </div>
           </CardHeader>
 
@@ -750,9 +783,8 @@ useEffect(() => {
                           className="border-2 border-green-300 text-green-700 hover:bg-green-50 transition-colors bg-transparent">
                           <QrCode className="inline-block mr-2 h-4 w-4" />Baixar QR Code
                         </Button>
-                        <Button onClick={gerarPDF}
-                          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"> <Download className="inline-block mr-2 h-4 w-4" />Baixar Convite (PDF)
-                        </Button>
+                       <Button onClick={gerarPDFComprador} className="..."><Download className="inline-block mr-2 h-4 w-4" />Baixar PDF do Comprador</Button>
+                      <Button onClick={gerarPDFConvidado} className="..."><Download className="inline-block mr-2 h-4 w-4" />Baixar PDF do Convidado</Button>
                       </div>
                     </>
                   )}
