@@ -16,7 +16,6 @@ import {
   Clock,
   Mail,
   CreditCard,
-  CheckCircle2,
   Camera,
   Loader2,
 } from "lucide-react"
@@ -26,7 +25,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   const [conviteSelecionado, setConviteSelecionado] = useState(null)
   const [qrModalAberto, setQrModalAberto] = useState(false)
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false)
-  const [modalTipo, setModalTipo] = useState(null) // 'comprador' ou 'convidado'
+  const [modalTipo, setModalTipo] = useState(null)
   const [scannerLoading, setScannerLoading] = useState(false)
   const [filtro, setFiltro] = useState("")
   const [loading, setLoading] = useState(true)
@@ -49,17 +48,19 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       setConvites(convitesArray)
       setLoading(false)
     })
-
     return () => unsubscribe()
   }, [db, idEvento])
 
-  // Função que busca o convite pelo nome lido no QR code (nome do comprador OU convidado)
-  const encontrarConvitePorNome = (nomeLido) => {
-    return convites.find(
-      (c) =>
-        c.comprador?.nome?.toLowerCase() === nomeLido.toLowerCase() ||
-        c.convidado?.nome?.toLowerCase() === nomeLido.toLowerCase()
-    )
+  // Busca convite pelo nome completo (comprador ou convidado)
+  const encontrarConvitePorNomeCompleto = (nomeCompleto) => {
+    return convites.find((c) => {
+      const nomeCompComprador = `${c.comprador?.nome ?? ""} ${c.comprador?.sobrenome ?? ""}`.toLowerCase().trim()
+      const nomeCompConvidado = `${c.convidado?.nome ?? ""} ${c.convidado?.sobrenome ?? ""}`.toLowerCase().trim()
+      return (
+        nomeCompleto.toLowerCase().trim() === nomeCompComprador ||
+        nomeCompleto.toLowerCase().trim() === nomeCompConvidado
+      )
+    })
   }
 
   const handleQRCodeRead = (decodedText) => {
@@ -68,81 +69,39 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     ultimaLeituraRef.current = agora
 
     const nomeLido = decodedText.trim()
-    const conviteEncontrado = encontrarConvitePorNome(nomeLido)
+    const conviteEncontrado = encontrarConvitePorNomeCompleto(nomeLido)
 
     if (!conviteEncontrado) {
       toast.error(`Nenhum convite encontrado para: ${nomeLido}`)
       return
     }
 
-    // Determina se é comprador ou convidado
-    const isComprador =
-      conviteEncontrado.comprador?.nome?.toLowerCase() === nomeLido.toLowerCase()
-    const isConvidado =
-      conviteEncontrado.convidado?.nome?.toLowerCase() === nomeLido.toLowerCase()
+    const nomeCompComprador = `${conviteEncontrado.comprador?.nome ?? ""} ${conviteEncontrado.comprador?.sobrenome ?? ""}`.toLowerCase().trim()
+    const nomeCompConvidado = `${conviteEncontrado.convidado?.nome ?? ""} ${conviteEncontrado.convidado?.sobrenome ?? ""}`.toLowerCase().trim()
 
-    if (isComprador) {
+    if (nomeLido.toLowerCase() === nomeCompComprador) {
       if (conviteEncontrado.statusComprador === "presente") {
         toast.error("Comprador já registrado como presente!")
         return
       }
-      // Mostrar modal para confirmar presença do comprador
       setConviteSelecionado(conviteEncontrado)
       setModalTipo("comprador")
       setModalDetalhesAberto(true)
       setQrModalAberto(false)
       stopCamera()
-    } else if (isConvidado) {
+    } else if (nomeLido.toLowerCase() === nomeCompConvidado) {
       if (conviteEncontrado.statusConvidado === "presente") {
         toast.error("Convidado já registrado como presente!")
         return
       }
-      // Mostrar modal para confirmar presença do convidado
       setConviteSelecionado(conviteEncontrado)
       setModalTipo("convidado")
       setModalDetalhesAberto(true)
       setQrModalAberto(false)
       stopCamera()
     } else {
-      toast.error("Não foi possível identificar se é comprador ou convidado.")
+      toast.error("Nome reconhecido, mas não foi possível identificar se é comprador ou convidado.")
     }
-  }
-
-  const startCamera = () => {
-    setScannerLoading(true)
-    if (!html5QrCodeRef.current) {
-      html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
-    }
-
-    Html5Qrcode.getCameras()
-      .then((devices) => {
-        if (devices && devices.length) {
-          const cameraId = devices[0].id
-          html5QrCodeRef.current
-            .start(
-              cameraId,
-              { fps: 10, qrbox: 250 },
-              (decodedText) => handleQRCodeRead(decodedText),
-              (error) => {
-                // opcional: console.warn("Erro leitura QR:", error)
-              }
-            )
-            .then(() => setScannerLoading(false))
-            .catch((err) => {
-              console.error("Erro ao iniciar câmera:", err)
-              toast.error("Erro ao iniciar a câmera: " + err)
-              setScannerLoading(false)
-            })
-        } else {
-          toast.error("Nenhuma câmera encontrada.")
-          setScannerLoading(false)
-        }
-      })
-      .catch((err) => {
-        console.error("Erro ao listar câmeras:", err)
-        toast.error("Erro ao listar câmeras: " + err)
-        setScannerLoading(false)
-      })
   }
 
   const stopCamera = () => {
@@ -150,41 +109,31 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       html5QrCodeRef.current
         .stop()
         .then(() => html5QrCodeRef.current.clear())
-        .catch((err) => {
-          console.error("Erro ao parar câmera:", err)
-        })
+        .catch((err) => console.error("Erro ao parar scanner:", err))
     }
   }
 
-  // Abre ou fecha modal QR e inicia ou para câmera
   useEffect(() => {
     if (qrModalAberto) {
       setScannerLoading(true)
-
       const iniciarCamera = async () => {
         try {
           const cameras = await Html5Qrcode.getCameras()
-
           if (!cameras || cameras.length === 0) {
             toast.error("Nenhuma câmera encontrada.")
             setScannerLoading(false)
             return
           }
-
           const cameraId = cameras[0].id
           if (!html5QrCodeRef.current) {
             html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
           }
-
           await html5QrCodeRef.current.start(
             cameraId,
             { fps: 10, qrbox: 250 },
-            (decodedText) => handleQRCodeRead(decodedText),
-            (error) => {
-              // leitura falhou, mas não precisa mostrar erro toda vez
-            }
+            handleQRCodeRead,
+            () => {}
           )
-
           setScannerLoading(false)
         } catch (err) {
           console.error("Erro ao iniciar câmera:", err)
@@ -192,21 +141,12 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
           setScannerLoading(false)
         }
       }
-
       iniciarCamera()
     } else {
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current
-          .stop()
-          .then(() => html5QrCodeRef.current.clear())
-          .catch((err) => console.error("Erro ao parar scanner:", err))
-      }
+      stopCamera()
     }
   }, [qrModalAberto])
 
-
-
-  // Confirmar presença comprador
   const confirmarPresencaComprador = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
       statusComprador: "presente",
@@ -214,17 +154,13 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       .then(() => {
         toast.success("Presença do comprador confirmada!")
         setModalDetalhesAberto(false)
-        // Atualizar estado local para refletir a alteração
         setConvites((prev) =>
-          prev.map((c) =>
-            c.id === conviteSelecionado.id ? { ...c, statusComprador: "presente" } : c
-          )
+          prev.map((c) => (c.id === conviteSelecionado.id ? { ...c, statusComprador: "presente" } : c))
         )
       })
       .catch(() => toast.error("Erro ao confirmar presença do comprador."))
   }
 
-  // Confirmar presença convidado
   const confirmarPresencaConvidado = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
       statusConvidado: "presente",
@@ -233,9 +169,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
         toast.success("Presença do convidado confirmada!")
         setModalDetalhesAberto(false)
         setConvites((prev) =>
-          prev.map((c) =>
-            c.id === conviteSelecionado.id ? { ...c, statusConvidado: "presente" } : c
-          )
+          prev.map((c) => (c.id === conviteSelecionado.id ? { ...c, statusConvidado: "presente" } : c))
         )
       })
       .catch(() => toast.error("Erro ao confirmar presença do convidado."))
@@ -283,15 +217,11 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Gerenciar Convidados</h1>
                 <p className="text-gray-600">Visualize e gerencie a presença dos convidados do evento</p>
               </div>
-
-              <Button
-                onClick={() => setQrModalAberto(true)}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                size="lg"
-              >
-                <QrCode className="w-5 h-5 mr-2" />
-                Escanear QR Code
-              </Button>
+              <div className="mt-4">
+                <Button onClick={() => setQrModalAberto(true)} className="mt-4">
+                  <QrCode className="mr-2" /> Escanear QR Code
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -308,7 +238,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -320,7 +249,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -385,7 +313,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                   className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 border-2 hover:border-purple-300 group"
                   onClick={() => {
                     setConviteSelecionado(convite)
-                    setModalTipo(null) // abrir detalhes sem modo confirmação
+                    setModalTipo(null)
                     setModalDetalhesAberto(true)
                   }}
                 >
@@ -408,7 +336,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       </div>
                     </div>
                   </CardHeader>
-
                   <CardContent>
                     <div className="flex items-center justify-between">
                       {badgePresenca(
@@ -417,7 +344,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                           : "pendente"
                       )}
                     </div>
-
                     {convite.convidado?.nome && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-sm text-gray-600">
@@ -440,7 +366,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                   Escanear QR Code
                 </DialogTitle>
               </DialogHeader>
-
               <div className="space-y-4">
                 {scannerLoading && (
                   <div className="flex items-center justify-center py-8">
@@ -448,7 +373,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                     <span className="text-gray-600">Iniciando câmera...</span>
                   </div>
                 )}
-
                 <div
                   id={qrCodeRegionId}
                   className="rounded-lg overflow-hidden border-2 border-gray-200"
@@ -469,7 +393,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
               <DialogHeader>
                 <DialogTitle className="text-xl">Detalhes do Convite</DialogTitle>
               </DialogHeader>
-
               {conviteSelecionado && (
                 <div className="space-y-4">
                   <div>
@@ -487,7 +410,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       <strong>Status:</strong> {badgePresenca(conviteSelecionado.statusComprador)}
                     </p>
                   </div>
-
                   {conviteSelecionado.convidado?.nome && (
                     <div>
                       <h2 className="font-semibold text-lg mb-1">Convidado</h2>
@@ -502,8 +424,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       </p>
                     </div>
                   )}
-
-                  {/* Botões para confirmar presença conforme o modalTipo */}
                   {modalTipo === "comprador" && (
                     <Button
                       variant="outline"
@@ -514,7 +434,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       Confirmar Presença do Comprador
                     </Button>
                   )}
-
                   {modalTipo === "convidado" && (
                     <Button
                       variant="outline"
@@ -525,8 +444,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       Confirmar Presença do Convidado
                     </Button>
                   )}
-
-                  {/* Botão fechar */}
                   <Button variant="ghost" onClick={() => setModalDetalhesAberto(false)} className="w-full mt-2">
                     Fechar
                   </Button>
