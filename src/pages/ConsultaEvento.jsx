@@ -25,10 +25,17 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   const [conviteSelecionado, setConviteSelecionado] = useState(null)
   const [qrModalAberto, setQrModalAberto] = useState(false)
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false)
+  const [modalEditarAberto, setModalEditarAberto] = useState(false)
   const [modalTipo, setModalTipo] = useState(null)
   const [scannerLoading, setScannerLoading] = useState(false)
   const [filtro, setFiltro] = useState("")
   const [loading, setLoading] = useState(true)
+  const [dadosEdicao, setDadosEdicao] = useState({
+    nome: "",
+    sobrenome: "",
+    telefone: "",
+    cpf: "",
+  })
 
   const qrCodeRegionId = "html5qr-code-full-region"
   const html5QrCodeRef = useRef(null)
@@ -36,7 +43,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   const TEMPO_ENTRE_LEITURAS = 2000
   const db = getDatabase()
 
-  // Função para formatar CPF
+  // Formata CPF (xxx.xxx.xxx-xx)
   function formatarCPF(valor) {
     if (!valor) return ""
     valor = valor.replace(/\D/g, "")
@@ -46,7 +53,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     return valor.slice(0, 14)
   }
 
-  // Função para formatar telefone
+  // Formata telefone ( (xx) xxxxx-xxxx )
   function formatarTelefone(valor) {
     if (!valor) return ""
     valor = valor.replace(/\D/g, "")
@@ -55,6 +62,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     return valor.slice(0, 15)
   }
 
+  // Busca convites do evento no Firebase
   useEffect(() => {
     const convitesRef = ref(db, `convites/${idEvento}`)
     setLoading(true)
@@ -70,17 +78,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     return () => unsubscribe()
   }, [db, idEvento])
 
-  // QRCode agora só preenche o filtro
-  const handleQRCodeRead = (decodedText) => {
-    const agora = Date.now()
-    if (agora - ultimaLeituraRef.current < TEMPO_ENTRE_LEITURAS) return
-    ultimaLeituraRef.current = agora
-
-    setFiltro(decodedText.trim())
-    setQrModalAberto(false)
-    stopCamera()
-  }
-
+  // Função para parar a câmera
   function stopCamera() {
     if (html5QrCodeRef.current) {
       if (html5QrCodeRef.current._isScanning) {
@@ -107,11 +105,21 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   }
 
   useEffect(() => {
-    return () => {
-      stopCamera()
-    }
+    return () => stopCamera()
   }, [])
 
+  // Lida com leitura do QR Code
+  const handleQRCodeRead = (decodedText) => {
+    const agora = Date.now()
+    if (agora - ultimaLeituraRef.current < TEMPO_ENTRE_LEITURAS) return
+    ultimaLeituraRef.current = agora
+
+    setFiltro(decodedText.trim())
+    setQrModalAberto(false)
+    stopCamera()
+  }
+
+  // Inicia câmera para leitura QR
   useEffect(() => {
     if (qrModalAberto) {
       setScannerLoading(true)
@@ -124,11 +132,8 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
             setScannerLoading(false)
             return
           }
-          const backCamera = cameras.find(
-            (cam) =>
-              cam.label.toLowerCase().includes("back") ||
-              cam.label.toLowerCase().includes("traseira") ||
-              cam.label.toLowerCase().includes("rear")
+          const backCamera = cameras.find((cam) =>
+            ["back", "traseira", "rear"].some((label) => cam.label.toLowerCase().includes(label))
           )
           const cameraId = backCamera ? backCamera.id : cameras[0].id
           const regionElement = document.getElementById(qrCodeRegionId)
@@ -140,18 +145,11 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
           if (html5QrCodeRef.current) {
             try {
               await html5QrCodeRef.current.stop()
-            } catch {}
-            try {
               html5QrCodeRef.current.clear()
             } catch {}
           }
           html5QrCodeRef.current = new Html5Qrcode(qrCodeRegionId)
-          await html5QrCodeRef.current.start(
-            cameraId,
-            { fps: 10, qrbox: 250 },
-            handleQRCodeRead,
-            () => {}
-          )
+          await html5QrCodeRef.current.start(cameraId, { fps: 10, qrbox: 250 }, handleQRCodeRead, () => {})
           setScannerLoading(false)
         } catch (err) {
           console.error("Erro ao iniciar câmera:", err)
@@ -165,6 +163,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     }
   }, [qrModalAberto])
 
+  // Confirmar presença do comprador
   const confirmarPresencaComprador = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
       statusComprador: "presente",
@@ -179,6 +178,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       .catch(() => toast.error("Erro ao confirmar presença do comprador."))
   }
 
+  // Confirmar presença do convidado
   const confirmarPresencaConvidado = () => {
     update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}`), {
       statusConvidado: "presente",
@@ -193,6 +193,43 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
       .catch(() => toast.error("Erro ao confirmar presença do convidado."))
   }
 
+  // Cancelar convidado (zera os dados do convidado no Firebase)
+  const cancelarConvidado = () => {
+    update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}/convidado`), {
+      nome: "",
+      sobrenome: "",
+      telefone: "",
+      cpf: "",
+    })
+      .then(() => {
+        toast.success("Convidado cancelado com sucesso!")
+        setModalDetalhesAberto(false)
+      })
+      .catch(() => toast.error("Erro ao cancelar convidado."))
+  }
+
+  // Abrir modal de edição com dados atuais do convidado
+  const abrirModalEditarConvidado = () => {
+    setDadosEdicao({
+      nome: conviteSelecionado.convidado?.nome || "",
+      sobrenome: conviteSelecionado.convidado?.sobrenome || "",
+      telefone: conviteSelecionado.convidado?.telefone || "",
+      cpf: conviteSelecionado.convidado?.cpf || "",
+    })
+    setModalEditarAberto(true)
+  }
+
+  // Salvar edição do convidado
+  const salvarEdicaoConvidado = () => {
+    update(ref(db, `convites/${idEvento}/${conviteSelecionado.id}/convidado`), dadosEdicao)
+      .then(() => {
+        toast.success("Convidado editado com sucesso!")
+        setModalEditarAberto(false)
+        setModalDetalhesAberto(false)
+      })
+      .catch(() => toast.error("Erro ao salvar edição do convidado."))
+  }
+
   // Estatísticas
   const totalConvites = convites.length * 2
   const totalPresentes =
@@ -200,7 +237,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
     convites.filter((c) => c.statusConvidado === "presente").length
   const totalPendentes = totalConvites - totalPresentes
 
-  // Filtro por nome e sobrenome do comprador e do convidado
+  // Filtra convites pelo nome do comprador ou convidado
   const convitesFiltrados = convites.filter((c) => {
     const termo = filtro.toLowerCase()
     const nomeComprador = `${c.comprador?.nome || ""} ${c.comprador?.sobrenome || ""}`.toLowerCase()
@@ -293,7 +330,7 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
             </CardContent>
           </Card>
 
-          {/* Lista de convites - separados */}
+          {/* Lista de convites - compradores */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {loading ? (
               <>
@@ -323,7 +360,6 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
               </Card>
             ) : (
               <>
-                {/* Cards de compradores */}
                 {convitesFiltrados.map((convite) => (
                   <Card
                     key={convite.id + "-comprador"}
@@ -350,13 +386,12 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                       )}
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between">
-                        {badgePresenca(convite.statusComprador)}
-                      </div>
+                      <div className="flex items-center justify-between">{badgePresenca(convite.statusComprador)}</div>
                     </CardContent>
                   </Card>
                 ))}
-                {/* Cards de convidados */}
+
+                {/* Lista de convidados */}
                 {convitesFiltrados
                   .filter((convite) => convite.convidado?.nome)
                   .map((convite) => (
@@ -385,113 +420,169 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
                         )}
                       </CardHeader>
                       <CardContent>
-                        <div className="flex items-center justify-between">
-                          {badgePresenca(convite.statusConvidado)}
-                        </div>
+                        <div className="flex items-center justify-between">{badgePresenca(convite.statusConvidado)}</div>
                       </CardContent>
                     </Card>
                   ))}
               </>
             )}
           </div>
-
-          {/* Modal Scanner QR */}
-          <Dialog open={qrModalAberto} onOpenChange={setQrModalAberto}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center text-xl">
-                  <Camera className="w-6 h-6 mr-2 text-purple-600" />
-                  Escanear QR Code
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {scannerLoading && (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-600 mr-3" />
-                    <span className="text-gray-600">Iniciando câmera...</span>
-                  </div>
-                )}
-                <div
-                  id={qrCodeRegionId}
-                  className="rounded-lg overflow-hidden border-2 border-gray-200"
-                  style={{ width: "100%", minHeight: "300px" }}
-                />
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Dica:</strong> Escaneie o QR code para pesquisar automaticamente pelo convidado.
-                  </p>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Modal detalhes e confirmação presença */}
-          <Dialog open={modalDetalhesAberto} onOpenChange={setModalDetalhesAberto}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="text-xl">Detalhes do Convite</DialogTitle>
-              </DialogHeader>
-              {conviteSelecionado && (
-                <div className="space-y-4">
-                  {modalTipo === "comprador" && (
-                    <div>
-                      <h2 className="font-semibold text-lg mb-1">Comprador</h2>
-                      <p>
-                        <strong>Nome:</strong> {conviteSelecionado.comprador?.nome} {conviteSelecionado.comprador?.sobrenome}
-                      </p>
-                      <p>
-                        <strong>Telefone/WhatsApp:</strong> {formatarTelefone(conviteSelecionado.comprador?.telefone)}
-                      </p>
-                      <p>
-                        <strong>CPF:</strong> {formatarCPF(conviteSelecionado.comprador?.cpf)}
-                      </p>
-                      <p>
-                        <strong>Status:</strong> {badgePresenca(conviteSelecionado.statusComprador)}
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={confirmarPresencaComprador}
-                        className="w-full mt-4"
-                        disabled={conviteSelecionado.statusComprador === "presente"}
-                      >
-                        Confirmar Presença do Comprador
-                      </Button>
-                    </div>
-                  )}
-                  {modalTipo === "convidado" && (
-                    <div>
-                      <h2 className="font-semibold text-lg mb-1">Convidado</h2>
-                      <p>
-                        <strong>Nome:</strong> {conviteSelecionado.convidado?.nome} {conviteSelecionado.convidado?.sobrenome}
-                      </p>
-                      <p>
-                        <strong>Telefone/WhatsApp:</strong> {formatarTelefone(conviteSelecionado.convidado?.telefone)}
-                      </p>
-                      <p>
-                        <strong>CPF:</strong> {formatarCPF(conviteSelecionado.convidado?.cpf)}
-                      </p>
-                      <p>
-                        <strong>Status:</strong> {badgePresenca(conviteSelecionado.statusConvidado)}
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={confirmarPresencaConvidado}
-                        className="w-full mt-4"
-                        disabled={conviteSelecionado.statusConvidado === "presente"}
-                      >
-                        Confirmar Presença do Convidado
-                      </Button>
-                    </div>
-                  )}
-                  <Button variant="ghost" onClick={() => setModalDetalhesAberto(false)} className="w-full mt-2">
-                    Fechar
-                  </Button>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
+
+      {/* Modal detalhes */}
+      <Dialog open={modalDetalhesAberto} onOpenChange={setModalDetalhesAberto}>
+        <DialogContent className="max-w-lg p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-800">
+              {modalTipo === "comprador"
+                ? `Comprador: ${conviteSelecionado?.comprador?.nome} ${conviteSelecionado?.comprador?.sobrenome}`
+                : `Convidado: ${conviteSelecionado?.convidado?.nome} ${conviteSelecionado?.convidado?.sobrenome}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-6 space-y-6 text-gray-700">
+            {/* Dados */}
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold">Telefone</p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Phone className="w-5 h-5 text-gray-500" />
+                  <span>
+                    {modalTipo === "comprador"
+                      ? formatarTelefone(conviteSelecionado?.comprador?.telefone)
+                      : formatarTelefone(conviteSelecionado?.convidado?.telefone)}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 font-semibold">CPF</p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <CreditCard className="w-5 h-5 text-gray-500" />
+                  <span>
+                    {modalTipo === "comprador"
+                      ? formatarCPF(conviteSelecionado?.comprador?.cpf)
+                      : formatarCPF(conviteSelecionado?.convidado?.cpf)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+              {modalTipo === "comprador" && conviteSelecionado?.statusComprador !== "presente" && (
+                <Button onClick={confirmarPresencaComprador} className="bg-green-600 hover:bg-green-700">
+                  Confirmar Presença
+                </Button>
+              )}
+              {modalTipo === "convidado" && conviteSelecionado?.statusConvidado !== "presente" && (
+                <>
+                  <Button onClick={confirmarPresencaConvidado} className="bg-green-600 hover:bg-green-700">
+                    Confirmar Presença
+                  </Button>
+                  <Button variant="outline" onClick={abrirModalEditarConvidado}>
+                    Editar Convidado
+                  </Button>
+                  <Button variant="destructive" onClick={cancelarConvidado}>
+                    Cancelar Convidado
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" onClick={() => setModalDetalhesAberto(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal editar convidado */}
+      <Dialog open={modalEditarAberto} onOpenChange={setModalEditarAberto}>
+        <DialogContent className="max-w-lg p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-800">Editar Convidado</DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              salvarEdicaoConvidado()
+            }}
+            className="space-y-5 mt-6"
+          >
+            <div>
+              <label className="block mb-1 text-sm font-semibold text-gray-600">Nome</label>
+              <Input
+                type="text"
+                value={dadosEdicao.nome}
+                onChange={(e) => setDadosEdicao({ ...dadosEdicao, nome: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 text-sm font-semibold text-gray-600">Sobrenome</label>
+              <Input
+                type="text"
+                value={dadosEdicao.sobrenome}
+                onChange={(e) => setDadosEdicao({ ...dadosEdicao, sobrenome: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 text-sm font-semibold text-gray-600">Telefone</label>
+              <Input
+                type="tel"
+                value={dadosEdicao.telefone}
+                onChange={(e) => setDadosEdicao({ ...dadosEdicao, telefone: e.target.value })}
+                maxLength={15}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 text-sm font-semibold text-gray-600">CPF</label>
+              <Input
+                type="text"
+                value={dadosEdicao.cpf}
+                onChange={(e) => setDadosEdicao({ ...dadosEdicao, cpf: e.target.value })}
+                maxLength={14}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-4">
+              <Button variant="ghost" onClick={() => setModalEditarAberto(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal QR Code Scanner */}
+      <Dialog open={qrModalAberto} onOpenChange={setQrModalAberto}>
+        <DialogContent className="max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle>Escanear QR Code</DialogTitle>
+          </DialogHeader>
+          <div className="w-full h-80 flex justify-center items-center bg-gray-100 rounded">
+            {scannerLoading ? (
+              <Loader2 className="animate-spin w-10 h-10 text-purple-600" />
+            ) : (
+              <div id={qrCodeRegionId} style={{ width: "100%", height: "100%" }} />
+            )}
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button variant="ghost" onClick={() => setQrModalAberto(false)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

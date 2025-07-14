@@ -203,12 +203,8 @@ export default function EventoEConvite() {
     if (!form.sobrenome.trim()) newErrors.sobrenome = "Sobrenome é obrigatório"
     if (!form.telefone?.trim()) newErrors.telefone = "Telefone é obrigatório"
     else if (!/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.telefone)) newErrors.telefone = "Telefone inválido"
-    if (!form.cpf.trim()) newErrors.cpf = "CPF é obrigatório"
-    else if (form.cpf.replace(/\D/g, "").length !== 11) newErrors.cpf = "CPF deve ter 11 dígitos"
     if (form.convidadoTelefone && !/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.convidadoTelefone))
       newErrors.convidadoTelefone = "Telefone do convidado inválido"
-    if (form.convidadoCPF && form.convidadoCPF.replace(/\D/g, "").length !== 11)
-      newErrors.convidadoCPF = "CPF do convidado deve ter 11 dígitos"
     if (!eventoInfo.idEvento.trim()) newErrors.idEvento = "ID do evento é obrigatório"
     if (!eventoInfo.nomeEvento.trim()) newErrors.nomeEvento = "Nome do evento é obrigatório"
     if (!eventoInfo.dataEvento.trim()) newErrors.dataEvento = "Data do evento é obrigatória"
@@ -362,19 +358,7 @@ export default function EventoEConvite() {
     dadosY += 18
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(20)
-    doc.text(nomeCompletoComprador, dadosX, dadosY)
-    dadosY += 14
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(18)
-    doc.text(`CPF:`, dadosX, dadosY)
-    doc.setFont("Arial", "normal")
-    doc.setFontSize(18)
-    doc.text(`${form.cpf || "N/A"}`, dadosX + 30, dadosY)
-    dadosY += 14
-    doc.setFont("Arial", "bold")
-    doc.text(`Telefone:`, dadosX, dadosY)
-    doc.setFont("Arial", "normal")
-    doc.text(`${form.telefone || "N/A"}`, dadosX + 35, dadosY)
+    doc.text(nomeCompletoComprador, dadosX, dadosY) 
     dadosY += 14
     doc.setFont("Arial", "bold")
     doc.text(`Código:`, dadosX, dadosY)
@@ -449,18 +433,6 @@ export default function EventoEConvite() {
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(20)
     doc.text(nomeCompletoConvidado, dadosX, dadosY)
-    dadosY += 14
-    doc.setFont("Chackra Pecth", "bold")
-    doc.setFontSize(18)
-    doc.text(`CPF:`, dadosX, dadosY)
-    doc.setFont("Chackra Pecth", "normal")
-    doc.setFontSize(18)
-    doc.text(`${form.convidadoCPF || "N/A"}`, dadosX + 30, dadosY)
-    dadosY += 14
-    doc.setFont("Chackra Pecth", "bold")
-    doc.text(`Telefone:`, dadosX, dadosY)
-    doc.setFont("Chackra Pecth", "normal")
-    doc.text(`${form.convidadoTelefone || "N/A"}`, dadosX + 35, dadosY)
     dadosY += 14
     doc.setFont("Chackra Pecth", "bold")
     doc.text(`Código:`, dadosX, dadosY)
