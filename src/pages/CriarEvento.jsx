@@ -361,38 +361,40 @@ export default function EventoEConvite() {
     doc.text(nomeCompletoComprador, dadosX, dadosY) 
     dadosY += 14
     doc.setFont("Arial", "bold")
+    doc.setFontSize(18);
     doc.text(`Código:`, dadosX, dadosY)
     doc.setFont("Arial", "normal")
     doc.text(`${qrCodeValue}`, dadosX + 35, dadosY)
 
     // Dados do evento (centralizado e grande)
-    const eventoY = qrY + qrSize + 30
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(24)
-    doc.setTextColor("#FFCCFF")
-    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" })
+    const eventoY = qrY + qrSize + 30;
+    doc.setFont("Arial", "bold");
+    doc.setFontSize(24);
+    doc.setTextColor("#FFCCFF");
+    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" });
+<br />
+    doc.setFont("Arial", "normal");
+    doc.setFontSize(30);
+    doc.setTextColor("#FFFFFF");
+    doc.text("às 19h", 105, eventoY + 18, { align: "center" });
+<br />
+    doc.setFont("Arial", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor("#F20DE7");
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 36, { align: "center" });
+<br />
+    doc.setFont("Arial", "bold");
+    doc.setFontSize(20); // Corrigido de 0 para 14 (ou outro valor apropriado)
+    doc.setTextColor("#FFFFFF");
+    doc.text("Av. Alcides Sangirardi, S/N - Cidade Jardim, São Paulo", 105, eventoY + 48, { align: "center" });
+<br />
 
-    doc.setFontSize(20)
-    doc.setFont("Arial", "normal")
-    doc.setTextColor(255, 255, 255)
-    doc.text("ás 19h", 105, eventoY + 14, { align: "center" })
+    doc.setFont("Arial", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor("#FFCCFF");
+    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
 
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(20)
-    doc.setTextColor("#F20DE7")
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 26, { align: "center" }) 
-
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(20)
-    doc.setTextColor(255, 255, 255)
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, eventoY + 38, { align: "center" })
-
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(18)
-    doc.setTextColor("#FFCCFF")
-    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
-
-    doc.save(`Ingresso ${eventoInfo.nomeEvento} - ${nomeCompletoComprador}.pdf`)
+    doc.save(`Ingresso ${eventoInfo.nomeEvento} - ${nomeCompletoComprador}.pdf`);
   }
 
   async function gerarPDFConvidado() {
@@ -435,6 +437,7 @@ export default function EventoEConvite() {
     doc.text(nomeCompletoConvidado, dadosX, dadosY)
     dadosY += 14
     doc.setFont("Chackra Pecth", "bold")
+    doc.setFontSize(18);
     doc.text(`Código:`, dadosX, dadosY)
     doc.setFont("Chackra Pecth", "normal")
     doc.text(`${qrCodeValue}`, dadosX + 35, dadosY)
@@ -442,26 +445,26 @@ export default function EventoEConvite() {
     // Dados do evento (centralizado e grande)
     const eventoY = qrY + qrSize + 36 // era 45, agora 20 para subir tudo
 
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(24)
-    doc.setTextColor("#F20DE7")
-    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" })
-
-    doc.setFontSize(20)
-    doc.setFont("Arial", "italic", "bold")
-    doc.setTextColor(255, 255, 255)
-    doc.text("ás 19h", 105, eventoY + 14, { align: "center" })
-
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(20)
-    doc.setTextColor("#F20DE7")
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 26, { align: "center" }) // subiu mais
-
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(20)
-    doc.setTextColor(255, 255, 255)
-    doc.text(evento.endereco || eventoInfo.localEvento || "", 105, eventoY + 38, { align: "center" }) // subiu mais
-
+       doc.setFont("Arial", "bold");
+    doc.setFontSize(24);
+    doc.setTextColor("#FFCCFF");
+    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" });
+<br />
+    doc.setFont("Arial", "normal");
+    doc.setFontSize(30);
+    doc.setTextColor("#FFFFFF");
+    doc.text("às 19h", 105, eventoY + 18, { align: "center" });
+<br />
+    doc.setFont("Arial", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor("#F20DE7");
+    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 36, { align: "center" });
+<br />
+    doc.setFont("Arial", "bold");
+    doc.setFontSize(20); // Corrigido de 0 para 14 (ou outro valor apropriado)
+    doc.setTextColor("#FFFFFF");
+    doc.text("Av. Alcides Sangirardi, S/N - Cidade Jardim, São Paulo", 105, eventoY + 48, { align: "center" });
+<br />
     doc.setFont("Arial", "bold")
     doc.setFontSize(18)
     doc.setTextColor("#FFCCFF")
