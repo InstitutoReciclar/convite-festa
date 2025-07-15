@@ -290,16 +290,15 @@ export default function EventoEConvite() {
     img.src = "data:image/svg+xml;base64," + btoa(svgData)
   }
 
-  function formatarData(dataStr) {
-    if (!dataStr) return "Data não definida"
-    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-    const data = new Date(dataStr)
-    if (isNaN(data)) return dataStr
-    const dia = data.getDate()
-    const mes = meses[data.getMonth()]
-    const ano = data.getFullYear()
-    return `${dia.toString().padStart(2, "0")} de ${mes} de ${ano}`
-  }
+function formatarData(dataStr) {
+  if (!dataStr) return "Data não definida"
+
+  const [ano, mes, dia] = dataStr.split("-")
+  const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+  const nomeMes = meses[parseInt(mes, 10) - 1]
+
+  return `${dia} de ${nomeMes} de ${ano}`
+}
 
   function formatarHora(horaStr) {
     if (!horaStr) return "Horário a definir"
