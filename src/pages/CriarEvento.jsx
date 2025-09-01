@@ -197,21 +197,27 @@ export default function EventoEConvite() {
   }
 
   // Validação para telefone/WhatsApp
-  function validateForm() {
-    const newErrors = {}
-    if (!form.nome.trim()) newErrors.nome = "Nome é obrigatório"
-    if (!form.sobrenome.trim()) newErrors.sobrenome = "Sobrenome é obrigatório"
-    if (!form.telefone?.trim()) newErrors.telefone = "Telefone é obrigatório"
-    else if (!/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.telefone)) newErrors.telefone = "Telefone inválido"
-    if (form.convidadoTelefone && !/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.convidadoTelefone))
-      newErrors.convidadoTelefone = "Telefone do convidado inválido"
-    if (!eventoInfo.idEvento.trim()) newErrors.idEvento = "ID do evento é obrigatório"
-    if (!eventoInfo.nomeEvento.trim()) newErrors.nomeEvento = "Nome do evento é obrigatório"
-    if (!eventoInfo.dataEvento.trim()) newErrors.dataEvento = "Data do evento é obrigatória"
-    if (!eventoInfo.localEvento.trim()) newErrors.localEvento = "Local do evento é obrigatório"
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+function validateForm() {
+  const newErrors = {};
+  if (!form.nome.trim()) newErrors.nome = "Nome é obrigatório";
+  if (!form.sobrenome.trim()) newErrors.sobrenome = "Sobrenome é obrigatório";
+
+  // TELEFONE E CPF NÃO SÃO OBRIGATÓRIOS
+  if (form.telefone && !/^(\(\d{2}\)\s)?\d{4,5}-\d{4}$/.test(form.telefone))
+    newErrors.telefone = "Telefone inválido";
+
+  if (form.cpf && !/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(form.cpf))
+    newErrors.cpf = "CPF inválido";
+
+  if (!eventoInfo.idEvento.trim()) newErrors.idEvento = "ID do evento é obrigatório";
+  if (!eventoInfo.nomeEvento.trim()) newErrors.nomeEvento = "Nome do evento é obrigatório";
+  if (!eventoInfo.dataEvento.trim()) newErrors.dataEvento = "Data do evento é obrigatória";
+  if (!eventoInfo.localEvento.trim()) newErrors.localEvento = "Local do evento é obrigatório";
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+}
+
 
   async function handleSubmitConvite(e) {
     e.preventDefault()
@@ -321,155 +327,170 @@ function formatarData(dataStr) {
     }
   }
 
-  async function gerarPDFComprador() {
-    if (!qrCodeValue) return alert("Convite não gerado ainda!")
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
-    doc.setFillColor("#003885")
-    doc.rect(0, 0, 210, 297, "F")
-    let imgY = 15
-    if (eventoInfo.imagemURL) {
-      const imgData = await getImageDataUrl(eventoInfo.imagemURL)
-      if (imgData) {
-        doc.addImage(imgData, "JPEG", 15, imgY, 180, 90)
-        imgY += 90
-      }
+async function gerarPDFComprador() {
+  if (!qrCodeValue) return alert("Convite não gerado ainda!");
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFillColor("#003885");
+  doc.rect(0, 0, 210, 297, "F");
+
+  let imgY = 15;
+  if (eventoInfo.imagemURL) {
+    const imgData = await getImageDataUrl(eventoInfo.imagemURL);
+    if (imgData) {
+      doc.addImage(imgData, "JPEG", 15, imgY, 180, 90);
+      imgY += 90;
     }
-    // QR Code e dados do comprador lado a lado
-    const nomeCompletoComprador = `${form.nome} ${form.sobrenome}`
-    const qrComprador = await QRCode.toDataURL(nomeCompletoComprador)
-    const qrX = 25
-    const qrY = imgY + 20
-    const qrSize = 60
-
-    // QR Code
-    doc.setDrawColor(255, 255, 255)
-    doc.setLineWidth(2)
-    doc.rect(qrX, qrY, qrSize, qrSize)
-    doc.addImage(qrComprador, "PNG", qrX + 4, qrY + 4, qrSize - 8, qrSize - 8)
-
-    // Dados do comprador ao lado direito do QR (mais próximos)
-    const dadosX = qrX + qrSize + 10
-    let dadosY = qrY + 5
-    doc.setTextColor("#F20DE7")
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(26)
-    doc.text("Ingresso Comprador", dadosX, dadosY)
-    dadosY += 18
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(20)
-    doc.text(nomeCompletoComprador, dadosX, dadosY) 
-    dadosY += 14
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(18);
-    doc.text(`Código:`, dadosX, dadosY)
-    doc.setFont("Arial", "normal")
-    doc.text(`${qrCodeValue}`, dadosX + 35, dadosY)
-
-    // Dados do evento (centralizado e grande)
-    const eventoY = qrY + qrSize + 30;
-    doc.setFont("Arial", "bold");
-    doc.setFontSize(24);
-    doc.setTextColor("#FFCCFF");
-    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" });
-<br />
-    doc.setFont("Arial", "normal");
-    doc.setFontSize(30);
-    doc.setTextColor("#FFFFFF");
-    doc.text("às 19h", 105, eventoY + 18, { align: "center" });
-<br />
-    doc.setFont("Arial", "bold");
-    doc.setFontSize(30);
-    doc.setTextColor("#F20DE7");
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 36, { align: "center" });
-<br />
-    doc.setFont("Arial", "bold");
-    doc.setFontSize(20); // Corrigido de 0 para 14 (ou outro valor apropriado)
-    doc.setTextColor("#FFFFFF");
-    doc.text("Av. Alcides Sangirardi, S/N - Cidade Jardim, São Paulo", 105, eventoY + 48, { align: "center" });
-<br />
-
-    doc.setFont("Arial", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor("#FFCCFF");
-    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
-
-    doc.save(`Ingresso ${eventoInfo.nomeEvento} - ${nomeCompletoComprador}.pdf`);
   }
 
-  async function gerarPDFConvidado() {
-    if (!qrCodeValue) return alert("Convite não gerado ainda!")
-    if (!form.convidadoNome?.trim()) return alert("Nenhum convidado foi informado!")
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
-    doc.setFillColor("#003885")
-    doc.rect(0, 0, 210, 297, "F")
-    let imgY = 15
-    if (eventoInfo.imagemURL) {
-      const imgData = await getImageDataUrl(eventoInfo.imagemURL)
-      if (imgData) {
-        doc.addImage(imgData, "JPEG", 15, imgY, 180, 90)
-        imgY += 90
-      }
+  // QR Code e dados do comprador lado a lado
+  const nomeCompletoComprador = `${form.nome} ${form.sobrenome}`;
+  const qrComprador = await QRCode.toDataURL(nomeCompletoComprador);
+  const qrX = 25;
+  const qrY = imgY + 20;
+  const qrSize = 60;
+
+  // QR Code
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(2);
+  doc.rect(qrX, qrY, qrSize, qrSize);
+  doc.addImage(qrComprador, "PNG", qrX + 4, qrY + 4, qrSize - 8, qrSize - 8);
+
+  // Dados do comprador ao lado direito do QR
+  const dadosX = qrX + qrSize + 10;
+  let dadosY = qrY + 5;
+
+  doc.setTextColor("#F20DE7");
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(26);
+  doc.text("Ingresso Comprador", dadosX, dadosY);
+  dadosY += 18;
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  // Quebra de linha para nomes longos
+  const nomeLinhas = doc.splitTextToSize(nomeCompletoComprador, 100);
+  doc.text(nomeLinhas, dadosX, dadosY);
+  dadosY += nomeLinhas.length * 10;
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(18);
+  doc.text(`Código:`, dadosX, dadosY);
+  doc.setFont("Arial", "normal");
+  doc.text(`${qrCodeValue}`, dadosX + 35, dadosY);
+
+  // Dados do evento (centralizado)
+  const eventoY = qrY + qrSize + 30;
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(24);
+  doc.setTextColor("#FFCCFF");
+  doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" });
+
+  doc.setFont("Arial", "normal");
+  doc.setFontSize(30);
+  doc.setTextColor("#FFFFFF");
+  doc.text("às 19h", 105, eventoY + 18, { align: "center" });
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(30);
+  doc.setTextColor("#F20DE7");
+  doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 36, { align: "center" });
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor("#FFFFFF");
+  doc.text("Av. Alcides Sangirardi, S/N - Cidade Jardim, São Paulo", 105, eventoY + 48, { align: "center" });
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor("#FFCCFF");
+  doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
+
+  doc.save(`Ingresso ${eventoInfo.nomeEvento} - ${nomeCompletoComprador}.pdf`);
+}
+
+async function gerarPDFConvidado() {
+  if (!qrCodeValue) return alert("Convite não gerado ainda!");
+  if (!form.convidadoNome?.trim()) return alert("Nenhum convidado foi informado!");
+  
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFillColor("#003885");
+  doc.rect(0, 0, 210, 297, "F");
+
+  let imgY = 15;
+  if (eventoInfo.imagemURL) {
+    const imgData = await getImageDataUrl(eventoInfo.imagemURL);
+    if (imgData) {
+      doc.addImage(imgData, "JPEG", 15, imgY, 180, 90);
+      imgY += 90;
     }
-    // QR Code e dados do convidado lado a lado
-    const nomeCompletoConvidado = `${form.convidadoNome} ${form.convidadoSobrenome}`
-    const qrConvidado = await QRCode.toDataURL(nomeCompletoConvidado)
-    const qrX = 25
-    const qrY = imgY + 20
-    const qrSize = 60
-
-    // QR Code
-    doc.setDrawColor(255, 255, 255)
-    doc.setLineWidth(2)
-    doc.rect(qrX, qrY, qrSize, qrSize)
-    doc.addImage(qrConvidado, "PNG", qrX + 4, qrY + 4, qrSize - 8, qrSize - 8)
-
-    // Dados do convidado ao lado direito do QR (mais próximos)
-    const dadosX = qrX + qrSize + 10 // diminui distância
-    let dadosY = qrY + 5
-    doc.setTextColor("#F20DE7")
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(26)
-    doc.text("Ingresso Convidado", dadosX, dadosY)
-    dadosY += 18
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(20)
-    doc.text(nomeCompletoConvidado, dadosX, dadosY)
-    dadosY += 14
-    doc.setFont("Chackra Pecth", "bold")
-    doc.setFontSize(18);
-    doc.text(`Código:`, dadosX, dadosY)
-    doc.setFont("Chackra Pecth", "normal")
-    doc.text(`${qrCodeValue}`, dadosX + 35, dadosY)
-
-    // Dados do evento (centralizado e grande)
-    const eventoY = qrY + qrSize + 36 // era 45, agora 20 para subir tudo
-
-       doc.setFont("Arial", "bold");
-    doc.setFontSize(24);
-    doc.setTextColor("#FFCCFF");
-    doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" });
-<br />
-    doc.setFont("Arial", "normal");
-    doc.setFontSize(30);
-    doc.setTextColor("#FFFFFF");
-    doc.text("às 19h", 105, eventoY + 18, { align: "center" });
-<br />
-    doc.setFont("Arial", "bold");
-    doc.setFontSize(30);
-    doc.setTextColor("#F20DE7");
-    doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 36, { align: "center" });
-<br />
-    doc.setFont("Arial", "bold");
-    doc.setFontSize(20); // Corrigido de 0 para 14 (ou outro valor apropriado)
-    doc.setTextColor("#FFFFFF");
-    doc.text("Av. Alcides Sangirardi, S/N - Cidade Jardim, São Paulo", 105, eventoY + 48, { align: "center" });
-<br />
-    doc.setFont("Arial", "bold")
-    doc.setFontSize(18)
-    doc.setTextColor("#FFCCFF")
-    doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" })
-    doc.save(`Ingresso ${eventoInfo.nomeEvento} -  ${nomeCompletoConvidado}.pdf`)
   }
+
+  // QR Code e dados do convidado lado a lado
+  const nomeCompletoConvidado = `${form.convidadoNome} ${form.convidadoSobrenome}`;
+  const qrConvidado = await QRCode.toDataURL(nomeCompletoConvidado);
+  const qrX = 25;
+  const qrY = imgY + 20;
+  const qrSize = 60;
+
+  // QR Code
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(2);
+  doc.rect(qrX, qrY, qrSize, qrSize);
+  doc.addImage(qrConvidado, "PNG", qrX + 4, qrY + 4, qrSize - 8, qrSize - 8);
+
+  // Dados do convidado ao lado direito do QR
+  const dadosX = qrX + qrSize + 10;
+  let dadosY = qrY + 5;
+
+  doc.setTextColor("#F20DE7");
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(26);
+  doc.text("Ingresso Convidado", dadosX, dadosY);
+  dadosY += 18;
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  // Quebra de linha para nomes longos
+  const nomeConvidadoLinhas = doc.splitTextToSize(nomeCompletoConvidado, 100);
+  doc.text(nomeConvidadoLinhas, dadosX, dadosY);
+  dadosY += nomeConvidadoLinhas.length * 10;
+
+  doc.setFont("Chackra Pecth", "bold");
+  doc.setFontSize(18);
+  doc.text(`Código:`, dadosX, dadosY);
+  doc.setFont("Chackra Pecth", "normal");
+  doc.text(`${qrCodeValue}`, dadosX + 35, dadosY);
+
+  // Dados do evento (centralizado)
+  const eventoY = qrY + qrSize + 36;
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(24);
+  doc.setTextColor("#FFCCFF");
+  doc.text(formatarData(eventoInfo.dataEvento), 105, eventoY, { align: "center" });
+
+  doc.setFont("Arial", "normal");
+  doc.setFontSize(30);
+  doc.setTextColor("#FFFFFF");
+  doc.text("às 19h", 105, eventoY + 18, { align: "center" });
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(30);
+  doc.setTextColor("#F20DE7");
+  doc.text(`Local: ${eventoInfo.localEvento || "A definir"}`, 105, eventoY + 36, { align: "center" });
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor("#FFFFFF");
+  doc.text("Av. Alcides Sangirardi, S/N - Cidade Jardim, São Paulo", 105, eventoY + 48, { align: "center" });
+
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor("#FFCCFF");
+  doc.text("Agradecemos sua presença! Esperamos você no evento.", 105, 292, { align: "center" });
+
+  doc.save(`Ingresso ${eventoInfo.nomeEvento} - ${nomeCompletoConvidado}.pdf`);
+}
+
 
   // Renderização
   if (!eventoSelecionado) {
@@ -719,20 +740,48 @@ function formatarData(dataStr) {
                       {errors.sobrenome && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.sobrenome}</p>)}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="telefone" className="text-sm font-medium text-gray-700">Telefone/WhatsApp *</Label>
-                      <Input id="telefone" name="telefone" type="text" placeholder="(11) 99999-9999" value={form.telefone} onChange={handleChangeConvite}
-                        className={`h-12 border-2 transition-colors ${errors.telefone ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"}`} />
-                      {errors.telefone && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.telefone}</p>)}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cpf" className="text-sm font-medium text-gray-700">CPF * </Label>
-                      <Input id="cpf" name="cpf" type="text"  placeholder="000.000.000-00" maxLength={14} value={form.cpf} onChange={handleChangeConvite}
-                        className={`h-12 border-2 transition-colors ${errors.cpf ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"}`} />
-                      {errors.cpf && (<p className="text-sm text-red-600 flex items-center gap-1 animate-pulse"><AlertCircle className="h-3 w-3" />{errors.cpf}</p> )}
-                    </div>
-                  </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-2">
+        <Label htmlFor="telefone" className="text-sm font-medium text-gray-700">Telefone/WhatsApp</Label>
+        <Input
+          id="telefone"
+          name="telefone"
+          type="text"
+          placeholder="(11) 99999-9999"
+          value={form.telefone}
+          onChange={handleChangeConvite}
+          className={`h-12 border-2 transition-colors ${
+            errors.telefone ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"
+          }`}
+        />
+        {errors.telefone && (
+          <p className="text-sm text-red-600 flex items-center gap-1 animate-pulse">
+            <AlertCircle className="h-3 w-3" />{errors.telefone}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="cpf" className="text-sm font-medium text-gray-700">CPF</Label>
+        <Input
+          id="cpf"
+          name="cpf"
+          type="text"
+          placeholder="000.000.000-00"
+          maxLength={14}
+          value={form.cpf}
+          onChange={handleChangeConvite}
+          className={`h-12 border-2 transition-colors ${
+            errors.cpf ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"
+          }`}
+        />
+        {errors.cpf && (
+          <p className="text-sm text-red-600 flex items-center gap-1 animate-pulse">
+            <AlertCircle className="h-3 w-3" />{errors.cpf}
+          </p>
+        )}
+      </div>
+    </div>
                 </CardContent>
               </Card>
 
