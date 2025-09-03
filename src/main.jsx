@@ -72,6 +72,16 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+       {
+        path: "/registro",
+        element: (
+          <ProtectedRoute allowedTypes={ALL_TYPES}>
+            <Suspense fallback={<div>Carregando Reserva...</div>}>
+              <Registro />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
 ]);

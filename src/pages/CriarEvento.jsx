@@ -914,25 +914,59 @@ async function gerarPDFConvidado() {
           </CardContent>
         </Card>
         {/* Lista de convites */}
-        {Object.keys(convitesEvento).length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-bold mb-4 text-purple-800 flex items-center gap-2"><Users className="h-5 w-5" /> Convites Criados</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(convitesEvento).map(([id, convite]) => (
-                <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
-                  <p className="text-sm text-gray-600">ID: <span className="font-mono">{id}</span></p>
-                  <p className="text-md font-semibold text-gray-800 mt-2">{convite.comprador?.nome} {convite.comprador?.sobrenome}</p>
-                  <p className="text-sm text-gray-500">{convite.comprador?.telefone}</p>
-                  {convite.convidado?.nome && (<p className="text-sm text-gray-700 mt-1">+ Convidado: {convite.convidado.nome}</p>)}
-                  <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
-                  <div className="mt-4 flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => excluirConvite(id)}>Excluir</Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            {/* Lista de convites */}
+{Object.keys(convitesEvento).length > 0 && (
+  <div className="mt-12">
+    <h2 className="text-xl font-bold mb-4 text-purple-800 flex items-center gap-2">
+      <Users className="h-5 w-5" /> Convites Criados
+    </h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Object.entries(convitesEvento).map(([id, convite]) => (
+        <Card key={id} className="p-4 border border-gray-200 bg-white shadow-sm">
+          <p className="text-sm text-gray-600">
+            ID: <span className="font-mono">{id}</span>
+          </p>
+          <p className="text-md font-semibold text-gray-800 mt-2">
+            {convite.comprador?.nome} {convite.comprador?.sobrenome}
+          </p>
+          <p className="text-sm text-gray-500">{convite.comprador?.telefone}</p>
+          {convite.convidado?.nome && (
+            <p className="text-sm text-gray-700 mt-1">
+              + Convidado: {convite.convidado.nome}
+            </p>
+          )}
+          <p className="text-xs text-gray-400 mt-2">Status: {convite.status}</p>
+          
+          <div className="mt-4 flex gap-2">
+            {/* Botão Selecionar */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                setQrCodeValue(id) // recarrega QR do convite
+                setForm(convite.comprador || {}) // carrega comprador
+                setEventoInfo(convite.evento || {}) // carrega evento
+                toast.success("Convite selecionado novamente!")
+              }}
+            >
+              Selecionar
+            </Button>
+
+            {/* Botão Excluir */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => excluirConvite(id)}
+            >
+              Excluir
+            </Button>
           </div>
-        )}
+        </Card>
+      ))}
+    </div>
+  </div>
+)}
+
       </div>
     </div>
   )
