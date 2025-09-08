@@ -5,7 +5,7 @@ import { UserType } from "./components/enum/usertype/usertype";
 import { ProtectedRoute } from "./components/enum/protectedRouted/protectedRouted.jsx";
 import App from "./App.jsx";
 import './index.css';
-import LoginForm from "@/pages/Login";
+// import LoginForm from "@/pages/Login";
 import PaginaNaoEncontradaGoogleStyle from "./components/error";
 import Registro from "./pages/Register_User";
 
@@ -24,7 +24,7 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <PaginaNaoEncontradaGoogleStyle />,
     children: [
-      { path: "/", element: <LoginForm /> },
+      { path: "/", element: <VisualizarEventos /> },
 
       {
         path: "/CriarEvento",
