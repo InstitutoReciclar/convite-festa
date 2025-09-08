@@ -11,9 +11,9 @@ import Registro from "./pages/Register_User";
 
 // Lazy loading para páginas maiores
 const ListaConvites = React.lazy(() => import("@/pages/listaConvites.jsx"));
-const ReservaConvite = React.lazy(() => import("@/pages/reserva.jsx"));
+// const ReservaConvite = React.lazy(() => import("@/pages/reserva.jsx"));
 const VisualizarEventos = React.lazy(() => import("@/pages/ConsultaEvento.jsx"));
-const CadastroEvento = React.lazy(() => import("@/pages/CriarEvento.jsx"));
+// const CadastroEvento = React.lazy(() => import("@/pages/CriarEvento.jsx"));
 
 // Definição dos tipos de usuários permitidos
 const ALL_TYPES = [UserType.ADMIN, UserType.USER, UserType.TI];
@@ -31,7 +31,7 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedTypes={ALL_TYPES}>
             <Suspense fallback={<div>Carregando Cadastro de Evento...</div>}>
-              <CadastroEvento />
+              <VisualizarEventos />
             </Suspense>
           </ProtectedRoute>
         ),
@@ -67,7 +67,7 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedTypes={ALL_TYPES}>
             <Suspense fallback={<div>Carregando Reserva...</div>}>
-              <ReservaConvite />
+              <VisualizarEventos />
             </Suspense>
           </ProtectedRoute>
         ),

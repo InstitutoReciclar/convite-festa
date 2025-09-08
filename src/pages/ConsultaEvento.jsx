@@ -63,20 +63,46 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
   }
 
   // Buscar convites do evento no Firebase
+  // useEffect(() => {
+  //   const convitesRef = ref(db, `convites/${idEvento}`)
+  //   setLoading(true)
+  //   const unsubscribe = onValue(convitesRef, (snapshot) => {
+  //     const data = snapshot.val() || {}
+  //     const convitesArray = Object.entries(data).map(([id, convite]) => ({
+  //       id,
+  //       ...convite,
+  //     }))
+  //     setConvites(convitesArray)
+  //     setLoading(false)
+  //   })
+  //   return () => unsubscribe()
+  // }, [db, idEvento])
   useEffect(() => {
-    const convitesRef = ref(db, `convites/${idEvento}`)
-    setLoading(true)
-    const unsubscribe = onValue(convitesRef, (snapshot) => {
-      const data = snapshot.val() || {}
-      const convitesArray = Object.entries(data).map(([id, convite]) => ({
-        id,
-        ...convite,
-      }))
-      setConvites(convitesArray)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [db, idEvento])
+  setLoading(true);
+
+  const convitesRef = ref(db, `convites`);
+  const unsubscribe = onValue(convitesRef, (snapshot) => {
+    const data = snapshot.val() || {};
+
+    // data = { idEvento1: {convite1, convite2}, idEvento2: {...} }
+    const convitesArray = [];
+
+    Object.entries(data).forEach(([idEvento, convitesEvento]) => {
+      Object.entries(convitesEvento).forEach(([idConvite, convite]) => {
+        convitesArray.push({
+          idEvento,
+          id: idConvite,
+          ...convite,
+        });
+      });
+    });
+
+    setConvites(convitesArray);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [db]);
 
   // Parar a câmera QR Code
   function stopCamera() {
@@ -593,3 +619,5 @@ const VisualizarEventos = ({ idEvento, onVoltar }) => {
 }
 
 export default VisualizarEventos
+
+
